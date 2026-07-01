@@ -742,6 +742,14 @@ public class ScreenBuilder {
 
         addPreference(category,
                 helper.switchPreference(
+                        str("piko_pref_customisation_more_info_on_profile"),
+                        str("piko_pref_customisation_more_info_on_profile_desc"),
+                        Settings.MORE_INFO_ON_PROFILE
+                )
+        );
+
+        addPreference(category,
+                helper.switchPreference(
                         str("piko_single_page_settings"),
                         str("piko_single_page_settings_desc")+"\n"+str("piko_pref_app_restart_rec"),
                         Settings.SINGLE_PAGE_SETTINGS
