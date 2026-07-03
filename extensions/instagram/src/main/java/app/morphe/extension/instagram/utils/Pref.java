@@ -281,5 +281,9 @@ public class Pref {
         return SharedPref.getSetPref(Settings.ACTION_BAR_CHAT);
     }
 
+    public static Set<String> inboxActionBarButtons() {
+        return SharedPref.getSetPref(Settings.ACTION_BAR_INBOX);
+    }
+
     //end
 }

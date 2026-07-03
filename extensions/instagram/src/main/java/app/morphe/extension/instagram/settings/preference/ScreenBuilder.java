@@ -634,8 +634,16 @@ public class ScreenBuilder {
 
         addPreference(
                 helper.multiSelectListPref(
-                        str("piko_action_bar_chat"),
+                        str("piko_action_bar_inbox"),
                         "",
+                        Settings.ACTION_BAR_INBOX
+                )
+        );
+
+        addPreference(
+                helper.multiSelectListPref(
+                        str("piko_action_bar_chat"),
+                        str("piko_action_bar_chat_desc"),
                         Settings.ACTION_BAR_CHAT
                 )
         );

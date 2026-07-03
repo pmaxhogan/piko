@@ -79,4 +79,5 @@ public class Settings {
     public static final StringSetting ACTION_BAR_MAIN_FEED = new StringSetting("action_bar_main_feed", "");
     public static final StringSetting ACTION_BAR_USER_PROFILE = new StringSetting("action_bar_user_profile", "");
     public static final StringSetting ACTION_BAR_CHAT = new StringSetting("action_bar_chat", "");
+    public static final StringSetting ACTION_BAR_INBOX = new StringSetting("action_bar_inbox", "");
 }

@@ -215,6 +215,8 @@ Note: On a clean install, the \'Tip\' animation may appear but will stop on its 
     <string name="piko_action_bar_main_feed">Main feed action bar icons</string>
     <string name="piko_action_bar_user_profile">User profile action bar icons</string>
     <string name="piko_action_bar_chat">Chat action bar icons</string>
+    <string name="piko_action_bar_chat_desc">Action bar icons inside a DM</string>
+    <string name="piko_action_bar_inbox">Inbox action bar icons</string>
 
     <string name="piko_action_bar_button_settings_icon">Settings icon</string>
     <string name="piko_action_bar_button_ghost_mode_icon">Ghost mode icon</string>

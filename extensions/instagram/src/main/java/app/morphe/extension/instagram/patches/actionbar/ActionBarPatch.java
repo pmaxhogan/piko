@@ -33,8 +33,7 @@ public class ActionBarPatch {
 
 
     private static void ghostModeToggle(ViewGroup viewGroup) throws Exception {
-        boolean hasGhostSection = SettingsStatus.ghostSection();
-        if(hasGhostSection){
+        if(SettingsStatus.ghostSection()){
             boolean ghostModeToggle = Pref.getTurnOnAllGhostModes();
 
             String iconStr = ghostModeToggle ? UI.DRAWABLE_EYE_STROKE_ICON:UI.DRAWABLE_EYE_ICON;
@@ -130,6 +129,27 @@ public class ActionBarPatch {
 
         } catch (Exception e) {
             Logger.printException(() -> "chatActionBarButton:", e);
+        }
+    }
+
+    public static void inboxActionBarButton(ViewGroup viewGroup) {
+        try {
+            if (viewGroup == null) {
+                return;
+            }
+
+            Set<String> pref = Pref.inboxActionBarButtons();
+
+            if(pref.contains(Constants.AB_SETTINGS_ICON)) {
+                UI.pikoSettingsGear(viewGroup);
+            }
+
+            if(pref.contains(Constants.AB_GHOST_MODE_ICON)) {
+                ghostModeToggle(viewGroup);
+            }
+
+        } catch (Exception e) {
+            Logger.printException(() -> "inboxActionBarButton:", e);
         }
     }
 

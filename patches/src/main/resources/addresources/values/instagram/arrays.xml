@@ -105,4 +105,14 @@
         <item>GHOST_MODE_ICON</item>
     </string-array>
 
+    <string-array name="piko_array_action_bar_inbox">
+        <item>@string/piko_action_bar_button_settings_icon</item>
+        <item>@string/piko_action_bar_button_ghost_mode_icon</item>
+    </string-array>
+
+    <string-array name="piko_array_action_bar_inbox_val">
+        <item>SETTINGS_ICON</item>
+        <item>GHOST_MODE_ICON</item>
+    </string-array>
+
 </resources>
