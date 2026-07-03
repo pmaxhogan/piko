@@ -47,8 +47,9 @@ public class UI {
     public static final String DRAWABLE_CODE_ICON = "fb_ic_code_outline_24";
     public static final String DRAWABLE_FRAME_CROSSED_ICON = "fb_ic_frames_cross_outline_16";
     public static final String DRAWABLE_LINK_ICON = "fb_ic_link_outline_24";
-    public static final String HIDE_ICON_NAME = "design_ic_visibility_off";
-    public static final String SHOW_ICON_NAME = "design_ic_visibility";
+    public static final String DRAWABLE_COLLECTIONS_ICON = "instagram_collections_pano_outline_24";
+    public static final String DRAWABLE_EYE_STROKE_ICON = "design_ic_visibility_off";
+    public static final String DRAWABLE_EYE_ICON = "design_ic_visibility";
 
 
     public static int getThemedColour() {
