@@ -99,7 +99,7 @@ val userProfileActionBarButtonPatch =
                                 if-eqz v$freeRegister, :piko
                                 iget-object v$freeRegister,v$freeRegister, $userDataFieldInUserDetailClass
                                 
-                                invoke-static {v$viewGroupRegister, v$freeRegister}, $ACTIONBAR_DESCRIPTOR/UserProfileActionBar;->addActionBarButton(Landroid/view/ViewGroup;Ljava/lang/Object;)V
+                                invoke-static {v$viewGroupRegister, v$freeRegister}, $ACTIONBAR_DESCRIPTOR->userProfileActionBarButton(Landroid/view/ViewGroup;Ljava/lang/Object;)V
                                 """.trimIndent()
 
                             addInstructionsWithLabels(

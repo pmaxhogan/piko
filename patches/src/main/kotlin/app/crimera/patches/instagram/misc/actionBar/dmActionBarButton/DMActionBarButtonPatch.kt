@@ -47,7 +47,7 @@ val dmActionBarButtonPatch =
                         addInstruction(
                             fistMoveResultObjectAfterLayoutIndex + 1,
                             """
-                            invoke-static {v$viewGroupRegister}, $ACTIONBAR_DESCRIPTOR/DMActionBar;->addActionBarButton(Landroid/view/ViewGroup;)V
+                            invoke-static {v$viewGroupRegister}, $ACTIONBAR_DESCRIPTOR->dmChatActionBarButton(Landroid/view/ViewGroup;)V
                             """.trimIndent(),
                         )
                     }
