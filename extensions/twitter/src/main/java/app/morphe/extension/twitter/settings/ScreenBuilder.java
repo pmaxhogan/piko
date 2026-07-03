@@ -405,7 +405,7 @@ public class ScreenBuilder {
             );
         }
 
-        category = preferenceCategory(str("piko_title_native_translator"));
+        category = preferenceCategory(str("piko_title_native_share_menu"));
 
         if (SettingsStatus.nativeTranslator) {
             addPreference(category,

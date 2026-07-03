@@ -211,7 +211,7 @@ Note: On a clean install, the \'Tip\' animation may appear but will stop on its 
     <string name="piko_tap_here">Tap here !!</string>
 
     <!-- Action Bar Section -->
-    <string name="piko_category_action_bar">Action bar customisations</string>
+    <string name="piko_category_action_bar">Action bar customisation</string>
     <string name="piko_action_bar_main_feed">Main feed action bar icons</string>
     <string name="piko_action_bar_user_profile">User profile action bar icons</string>
     <string name="piko_action_bar_chat">Chat action bar icons</string>
