@@ -188,7 +188,7 @@ public class UI {
                         String selectedOption = options.get(which);
 
                         if (selectedOption.equals(str("piko_goto_piko_settings"))) {
-                            PikoUtils.openUrl("instagram://profile");
+                            PikoUtils.openUrl("instagram://profile",true);
                         }
                     }
                 } catch (Exception e) {
