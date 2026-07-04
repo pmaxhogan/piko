@@ -9,6 +9,8 @@ package app.crimera.patches.instagram.entity.userdata
 import app.crimera.patches.instagram.entity.decoder.USER_MODEL_CLASS_NAME
 import app.crimera.patches.instagram.utils.Constants
 import app.morphe.patcher.Fingerprint
+import app.morphe.patches.all.misc.resources.ResourceType
+import app.morphe.patches.all.misc.resources.resourceLiteral
 import com.android.tools.smali.dexlib2.AccessFlags
 
 internal const val EXTENSION_CLASS_DESCRIPTOR = "${Constants.ENTITY_CLASS}/UserData;"
@@ -43,6 +45,11 @@ internal object GetProfilePictureUrlExtensionFingerprint : Fingerprint(
     definingClass = EXTENSION_CLASS_DESCRIPTOR,
 )
 
+internal object GetLowResProfilePictureExtensionFingerprint : Fingerprint(
+    name = "getLowResProfilePicture",
+    definingClass = EXTENSION_CLASS_DESCRIPTOR,
+)
+
 internal object EditProfileNuxFragmentOnCreateFingerprint : Fingerprint(
     name = "onCreate",
     strings = listOf("arg_full_name", "arg_bio"),
@@ -65,4 +72,12 @@ internal object DirectStoryViewerFragmentRelatedFingerprint : Fingerprint(
             "DirectFragment.DIRECT_FRAGMENT_ARGUMENT_THREAD_V2_ID",
         ),
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL, AccessFlags.BRIDGE, AccessFlags.SYNTHETIC),
+)
+
+internal object NewsfeedFragmentAvatarRelatedFingerprint : Fingerprint(
+    filters =
+        listOf(
+            resourceLiteral(ResourceType.ID, "avatar_with_badge_container_qs"),
+            resourceLiteral(ResourceType.ID, "avatar_image_qs"),
+        ),
 )

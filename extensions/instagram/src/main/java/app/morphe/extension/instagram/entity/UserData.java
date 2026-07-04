@@ -7,6 +7,7 @@
 
 package app.morphe.extension.instagram.entity;
 
+import com.instagram.common.typedurl.ImageUrl;
 
 public class UserData extends Entity {
     private final Object obj;
@@ -32,10 +33,15 @@ public class UserData extends Entity {
     public String getFullname() {
         try {
             Object additionalUserInfo = getAdditionalUserInfo();
-            return (String) super.getMethod(additionalUserInfo, "methodName");
+            String name = (String) super.getMethod(additionalUserInfo, "methodName");
+            if(name!=null && !name.isEmpty() && name.length()>0){
+                return name;
+            }
         } catch (Exception ex) {
-            return null;
+
         }
+        // Some users don't have fullname, but only username.
+        return this.getUsername();
     }
 
     public String getBio() {
@@ -54,6 +60,19 @@ public class UserData extends Entity {
             if(profilePicObject!=null){
                 Entity profilePicEntity = new Entity(profilePicObject);
                 return (String) profilePicEntity.getMethod("getUrl");
+            }
+            return null;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    public ImageUrl getLowResProfilePicture() {
+        try {
+            Object additionalUserInfo = getAdditionalUserInfo();
+            Object imageUrlObject =  super.getMethod(additionalUserInfo, "mediaName");
+            if(imageUrlObject!=null){
+                return (ImageUrl) imageUrlObject;
             }
             return null;
         } catch (Exception ex) {

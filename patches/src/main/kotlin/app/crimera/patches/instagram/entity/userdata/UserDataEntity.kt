@@ -66,5 +66,15 @@ val userDataEntity =
                     GetBioExtensionFingerprint.changeFirstString(bioMethod)
                 }
             }
+
+            NewsfeedFragmentAvatarRelatedFingerprint.apply {
+                val index = instructionMatches.last().index
+                method.apply {
+
+                    val lowResDpInvokeInstruction = getInstruction(indexOfFirstInstruction(index, Opcode.INVOKE_INTERFACE))
+                    val lowResDpMethodName = lowResDpInvokeInstruction.methodExtractor().name
+                    GetLowResProfilePictureExtensionFingerprint.changeFirstString(lowResDpMethodName)
+                }
+            }
         }
     }
