@@ -46,7 +46,7 @@ val chatActionBarButtonPatch =
                         addInstruction(
                             fistMoveResultObjectAfterLayoutIndex + 1,
                             """
-                            invoke-static {v$viewGroupRegister}, $ACTIONBAR_DESCRIPTOR->dmChatActionBarButton(Landroid/view/ViewGroup;)V
+                            invoke-static {v$viewGroupRegister}, $ACTIONBAR_DESCRIPTOR->chatActionBarButton(Landroid/view/ViewGroup;)V
                             """.trimIndent(),
                         )
                     }
