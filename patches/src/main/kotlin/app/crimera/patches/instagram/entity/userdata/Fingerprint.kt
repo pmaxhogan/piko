@@ -88,15 +88,8 @@ internal object UserNameLiveTreeUserDictFingerprint : Fingerprint(
 )
 
 internal object FriendshipStatusLiveTreeUserDictFingerprint : Fingerprint(
-    strings = listOf("friendship_status"),
     definingClass = LIVE_TREE_USER_DICT_CLASS,
-    custom = { methodDef, _ ->
-        methodDef.returnType != "V"
-    },
-    filters =
-        listOf(
-            opcode(Opcode.CONST_STRING, InstructionLocation.MatchFirst()),
-        ),
+    returnType = "FriendshipStatus;",
 )
 
 internal object BiographyLiveTreeUserDictFingerprint : Fingerprint(
