@@ -32,24 +32,29 @@ public class ViewStoryMentionsPatch {
             ArrayList<IgdsPeopleCell> peopleCells = new ArrayList<>();
             if(mentionSet!=null) {
                 mentionSet.forEach(userData -> {
-                    String fullName = userData.getFullname();
-                    String username = userData.getUsername();
-                    ImageUrl lowResDP = userData.getLowResProfilePicture();
+                    try {
+                        String fullName = userData.getFullName();
+                        String username = userData.getUsername();
+                        ImageUrl lowResDP = userData.getLowResProfilePicture();
 
-                    IgdsPeopleCell cell = new IgdsPeopleCell(context);
-                    // TODO: Need to check if user is verified.
-                    cell.A0A(fullName, false);
-                    cell.A08(username);
-                    cell.A06(lowResDP, null);
+                        IgdsPeopleCell cell = new IgdsPeopleCell(context);
+                        // TODO: Need to check if user is verified.
+                        cell.A0A(fullName, false);
+                        cell.A08(username);
+                        cell.A06(lowResDP, null);
 
-                    cell.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            PikoUtils.openUrl("instagram://user?username="+username,true);
-                        }
-                    });
+                        cell.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                PikoUtils.openUrl("instagram://user?username=" + username, true);
+                            }
+                        });
 
-                    peopleCells.add(cell);
+                        peopleCells.add(cell);
+                    } catch (Exception ex){
+                            Logger.printException(() -> "Failed story mention user extraction", ex);
+                            PikoUtils.logger(ex);
+                    }
                 });
             }
             PeopleCellDialogBox.showPeopleDialog(context, peopleCells);
