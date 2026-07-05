@@ -15,6 +15,8 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.view.Window;
+import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -37,7 +39,7 @@ import static app.morphe.extension.instagram.utils.IgStr.str;
  */
 @SuppressWarnings("unused")
 public class PeopleCellDialogBox {
-
+    private static final float DIALOG_WIDTH_PERCENT = 0.7f;
     /**
      * Builds and shows the dialog.
      *
@@ -58,7 +60,8 @@ public class PeopleCellDialogBox {
                 null,                                       // onCancelClick
                 null,                                       // neutralButtonText
                 null,                                       // onNeutralClick
-                true                                       // dismissDialogOnNeutralClick
+                true,                                       // dismissDialogOnNeutralClick
+                true                                        // accentOkButton
         );
 
         Dialog dialog = result.first;
@@ -73,7 +76,24 @@ public class PeopleCellDialogBox {
         // after the title and before the buttons.
         mainLayout.addView(listView, 1);
 
+        // Explicitly cap the window width -- don't rely on CustomDialog's own window sizing.
+        constrainWindowWidth(dialog);
+        dialog.setCanceledOnTouchOutside(true);
         dialog.show();
+    }
+
+    /**
+     * Caps the dialog window to {@link #DIALOG_WIDTH_PERCENT} of the screen width instead of
+     * letting it stretch full-width.
+     */
+    private static void constrainWindowWidth(@NonNull Dialog dialog) {
+        Window window = dialog.getWindow();
+        if (window == null) return;
+
+        WindowManager.LayoutParams params = window.getAttributes();
+        params.width = (int) (Dim.getScreenWidth() * DIALOG_WIDTH_PERCENT);
+        params.gravity = Gravity.CENTER;
+        window.setAttributes(params);
     }
 
     /**
