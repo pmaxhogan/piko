@@ -464,6 +464,14 @@ public class ScreenBuilder {
                             Settings.FOLLOW_BACK_INDICATOR
                     )
             );
+
+            addPreference(
+                    helper.switchPreference(
+                            str("piko_fbi_color_indicator"),
+                            str("piko_fbi_color_indicator_desc"),
+                            Settings.FOLLOW_BACK_COLOR_INDICATOR
+                    )
+            );
         }
         if (SettingsStatus.viewStoryMentions) {
             addPreference(

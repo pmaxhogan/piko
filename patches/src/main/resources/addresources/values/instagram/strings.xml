@@ -76,8 +76,11 @@ Note: On a clean install, the \'Tip\' animation may appear but will stop on its 
     <string name="piko_disable_discover_people_desc">Disables discover people section on user profile</string>
     <string name="piko_follow_back_indicator">Enable friendship status indicator</string>
     <string name="piko_follow_back_indicator_desc">Adds a follows you back status label on the profile page and shows a detailed friendship status breakdown on click</string>
+    <string name="piko_fbi_color_indicator">Enable colored friendship status indicator</string>
+    <string name="piko_fbi_color_indicator_desc">Friendship status indicator needs to be enabled</string>
     <string name="piko_fbi_follows_you">Follows you</string>
     <string name="piko_fbi_doesnt_follows_you">Does not follow you</string>
+    <string name="piko_fbi_following_each_other">Following each other</string>
     <string name="piko_friendship_status">Friendship status</string>
     <string name="piko_view_story_mentions">View story mentions</string>
     <string name="piko_vsm_title">Story mentions</string>

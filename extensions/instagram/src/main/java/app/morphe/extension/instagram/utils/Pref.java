@@ -165,6 +165,9 @@ public class Pref {
     public static boolean followBackIndicator() {
         return SharedPref.getBooleanPref(Settings.FOLLOW_BACK_INDICATOR);
     }
+    public static boolean followBackColorIndicator() {
+        return SharedPref.getBooleanPref(Settings.FOLLOW_BACK_COLOR_INDICATOR);
+    }
 
     public static boolean disableStoryFlipping() {
         return SharedPref.getBooleanPref(Settings.DISABLE_STORY_FLIPPING);
