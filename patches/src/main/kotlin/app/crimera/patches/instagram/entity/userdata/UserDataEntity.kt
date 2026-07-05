@@ -38,6 +38,7 @@ val userDataEntity =
             GetBioExtensionFingerprint.changeFirstString(BiographyLiveTreeUserDictFingerprint.getMethodName())
             GetProfilePictureUrlExtensionFingerprint.changeFirstString(HDProfileInfoUserTreeDictFingerprint.getMethodName())
             GetLowResProfilePictureExtensionFingerprint.changeFirstString(LowResProfilePictureUserTreeDictFingerprint.getMethodName())
+            IsVerifiedExtensionFingerprint.changeFirstString(IsVerifiedUserTreeDictFingerprint.getMethodName())
 
             SelectHighlightsCoverFragmentOnCreateFingerprint.method.apply {
                 val firstIGetObjectIndex = indexOfFirstInstruction(Opcode.IGET_OBJECT)

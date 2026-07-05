@@ -36,10 +36,11 @@ public class ViewStoryMentionsPatch {
                         String fullName = userData.getFullName();
                         String username = userData.getUsername();
                         ImageUrl lowResDP = userData.getLowResProfilePicture();
+                        boolean isVerified = userData.isVerified();
 
                         IgdsPeopleCell cell = new IgdsPeopleCell(context);
-                        // TODO: Need to check if user is verified.
-                        cell.A0A(fullName, false);
+
+                        cell.A0A(fullName, isVerified);
                         cell.A08(username);
                         cell.A06(lowResDP, null);
 

@@ -21,6 +21,11 @@ public class UserData extends Entity {
         return super.getField(this.obj, "fieldName");
     }
 
+    public Boolean isVerified() throws Exception {
+        Object additionalUserInfo = getAdditionalUserInfo();
+        return (Boolean) super.getMethod(additionalUserInfo, "isVerified");
+    }
+
     public String getUsername() throws Exception {
         Object additionalUserInfo = getAdditionalUserInfo();
         return (String) super.getMethod(additionalUserInfo, "methodName");

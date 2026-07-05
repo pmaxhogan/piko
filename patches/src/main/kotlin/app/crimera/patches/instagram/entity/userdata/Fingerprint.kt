@@ -56,6 +56,11 @@ internal object GetLowResProfilePictureExtensionFingerprint : Fingerprint(
     definingClass = EXTENSION_CLASS_DESCRIPTOR,
 )
 
+internal object IsVerifiedExtensionFingerprint : Fingerprint(
+    name = "isVerified",
+    definingClass = EXTENSION_CLASS_DESCRIPTOR,
+)
+
 // -----------------------------------
 
 internal object SelectHighlightsCoverFragmentOnCreateFingerprint : Fingerprint(
@@ -122,4 +127,10 @@ internal object HDProfileInfoUserTreeDictFingerprint : Fingerprint(
     custom = { methodDef, _ ->
         methodDef.returnType != "V"
     },
+)
+
+internal object IsVerifiedUserTreeDictFingerprint : Fingerprint(
+    definingClass = LIVE_TREE_USER_DICT_CLASS,
+    strings = listOf("is_verified"),
+    returnType = "Ljava/lang/Boolean;",
 )
