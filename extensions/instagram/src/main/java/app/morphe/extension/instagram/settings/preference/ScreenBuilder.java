@@ -741,6 +741,14 @@ public class ScreenBuilder {
         );
 
         addPreference(
+                helper.buttonPreference(
+                        str("piko_reset_pref"),
+                        "",
+                        "piko_reset_pref"
+                )
+        );
+
+        addPreference(
                 helper.switchPreference(
                         str("piko_debug"),
                         str("piko_debug_desc"),

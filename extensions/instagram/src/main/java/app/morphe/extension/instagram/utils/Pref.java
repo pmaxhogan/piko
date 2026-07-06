@@ -17,6 +17,10 @@ import app.morphe.extension.crimera.SharedPref;
 
 @SuppressWarnings("unused")
 public class Pref {
+    public static boolean clearAllPreferences() {
+        return SharedPref.clearAll();
+    }
+    
     public static boolean pikoDebug() {
         return SharedPref.getBooleanPref(Settings.PIKO_DEBUG);
     }

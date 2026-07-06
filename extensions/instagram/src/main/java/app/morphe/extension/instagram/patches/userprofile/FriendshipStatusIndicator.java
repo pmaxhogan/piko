@@ -23,7 +23,6 @@ import android.graphics.Typeface;
 import android.util.TypedValue;
 
 import app.morphe.extension.instagram.utils.Pref;
-import app.morphe.extension.instagram.utils.Utils;
 import app.morphe.extension.instagram.settings.SettingsStatus;
 import app.morphe.extension.instagram.entity.UserFriendshipStatus;
 import app.morphe.extension.instagram.entity.UserData;

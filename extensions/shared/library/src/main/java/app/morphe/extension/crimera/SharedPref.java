@@ -93,4 +93,16 @@ public class SharedPref {
         return false;
     }
 
+    public static boolean clearAll() {
+        try {
+            if (sp != null) {
+                sp.clearAll();
+                return true;
+            }
+        } catch (Exception ex) {
+            Utils.showToastShort(ex.toString());
+        }
+        return false;
+    }
+
 }
