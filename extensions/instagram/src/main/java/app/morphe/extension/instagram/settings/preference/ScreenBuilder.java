@@ -742,14 +742,6 @@ public class ScreenBuilder {
 
         addPreference(
                 helper.switchPreference(
-                        str("piko_settings_on_action_bar"),
-                        str("piko_settings_on_action_bar_desc"),
-                        Settings.PIKO_SETTINGS_ON_ACTION_BAR
-                )
-        );
-
-        addPreference(
-                helper.switchPreference(
                         str("piko_debug"),
                         str("piko_debug_desc"),
                         Settings.PIKO_DEBUG

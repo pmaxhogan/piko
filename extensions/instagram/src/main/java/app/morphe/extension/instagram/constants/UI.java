@@ -182,15 +182,13 @@ public class UI {
             @Override
             public void onClick(DialogInterface d, int which) {
                 try {
-                    // If settings is placed on action bar, no need to redirect to profile.
-                    if(!Pref.pikoSettingsOnActionBar()) {
-                        // Doing like this because options are dynamic.
-                        String selectedOption = options.get(which);
+                    // Doing like this because options are dynamic.
+                    String selectedOption = options.get(which);
 
-                        if (selectedOption.equals(str("piko_goto_piko_settings"))) {
-                            PikoUtils.openUrl("instagram://profile",true);
-                        }
+                    if (selectedOption.equals(str("piko_goto_piko_settings"))) {
+                        PikoUtils.openUrl("instagram://profile",true);
                     }
+
                 } catch (Exception e) {
                     Logger.printException(() -> "Error at welcomeDialogBox", e);
                     Utils.showToastShort(e.getMessage());
