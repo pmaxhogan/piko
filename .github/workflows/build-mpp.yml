@@ -1,0 +1,60 @@
+name: Build MPP
+
+# Builds the piko .mpp (with the Vantage "Hide verified users" patch) and
+# publishes it as a GitHub release asset, so pmaxhogan/vantage can consume it the
+# same way it consumes the anddea fork. Runs on ubuntu (Android SDK preinstalled),
+# which the local build lacks. No GPG/semantic-release needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish the mpp under"
+        required: true
+        default: "v3.7.0-vantage.1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build patches bundle
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew clean buildAndroid --no-daemon --console=plain
+
+      - name: Locate the .mpp
+        id: mpp
+        run: |
+          set -euo pipefail
+          f="$(find . -name '*.mpp' -type f | head -1)"
+          [ -n "$f" ] || { echo "no .mpp produced"; find . -name '*.mpp'; exit 1; }
+          cp "$f" "patches-${{ github.event.inputs.tag }}.mpp"
+          echo "path=patches-${{ github.event.inputs.tag }}.mpp" >> "$GITHUB_OUTPUT"
+          ls -la "$f" "patches-${{ github.event.inputs.tag }}.mpp"
+
+      - name: Publish release with the mpp
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${{ steps.mpp.outputs.path }}" --clobber
+          else
+            gh release create "$TAG" "${{ steps.mpp.outputs.path }}" \
+              --title "$TAG" \
+              --notes "piko + Vantage 'Hide verified users' patch. Built from crimera/piko for pmaxhogan/vantage."
+          fi
