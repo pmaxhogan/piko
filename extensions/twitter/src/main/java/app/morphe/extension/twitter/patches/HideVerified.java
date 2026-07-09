@@ -25,7 +25,8 @@ import java.util.List;
  * It works on the raw JSON server response, hooked at the same Jackson
  * createParser(InputStream) point as "Log server response", BEFORE the app parses
  * it into its obfuscated model. That makes it independent of per-version obfuscation
- * and applies uniformly to the home timeline, conversations/replies, and search.
+ * and applies uniformly to the home timeline, conversations/replies, search, lists,
+ * bookmarks, pinned tweets, and reply-pagination.
  *
  * Fail-safe by construction: if anything is unexpected the original bytes are
  * returned untouched, so a response is never corrupted.
@@ -35,9 +36,15 @@ public final class HideVerified {
     /** Wraps the response stream, filtering timeline JSON in place. */
     public static InputStream filter(InputStream in) {
         if (in == null) return null;
+        byte[] raw;
         try {
-            byte[] raw = readAll(in);
+            raw = readAll(in);
             in.close();
+        } catch (Throwable t) {
+            // Could not buffer the stream; hand back the original (nothing better available).
+            return in;
+        }
+        try {
             String json = new String(raw, StandardCharsets.UTF_8);
             // Cheap gate: only pay for parsing when a verified flag is present.
             if (json.indexOf("is_blue_verified") < 0
@@ -46,11 +53,11 @@ public final class HideVerified {
                 return new ByteArrayInputStream(raw);
             }
             String filtered = filterJson(json);
-            if (filtered == json) return new ByteArrayInputStream(raw);
+            if (filtered == null || filtered == json) return new ByteArrayInputStream(raw);
             return new ByteArrayInputStream(filtered.getBytes(StandardCharsets.UTF_8));
         } catch (Throwable t) {
-            // Never break the app: fall back to the untouched stream.
-            return in;
+            // Never break the app: hand back the original bytes, re-readable.
+            return new ByteArrayInputStream(raw);
         }
     }
 
@@ -59,7 +66,9 @@ public final class HideVerified {
         try {
             Object root = new JSONTokener(input).nextValue();
             int removed = walk(root);
-            return removed > 0 ? root.toString() : input;
+            if (removed <= 0) return input;
+            String out = root.toString();   // Android JSONObject.toString() can return null on internal error
+            return out != null ? out : input;
         } catch (Throwable t) {
             return input;
         }
@@ -74,7 +83,11 @@ public final class HideVerified {
             while (it.hasNext()) keys.add(it.next());
             for (String k : keys) {
                 Object v = o.opt(k);
-                if ("entries".equals(k) && v instanceof JSONArray) {
+                if ("instructions".equals(k) && v instanceof JSONArray) {
+                    // Singular pinned/replaced entries and module pagination live here,
+                    // not inside an "entries" array.
+                    removed += filterInstructions((JSONArray) v);
+                } else if ("entries".equals(k) && v instanceof JSONArray) {
                     removed += filterEntries((JSONArray) v);
                 }
                 removed += walk(v);
@@ -86,40 +99,72 @@ public final class HideVerified {
         return removed;
     }
 
+    // TimelinePinEntry / TimelineReplaceEntry carry a single "entry"; TimelineAddToModule
+    // carries "moduleItems". "entries" arrays inside instructions are handled by walk().
+    private static int filterInstructions(JSONArray instructions) {
+        int removed = 0;
+        for (int i = instructions.length() - 1; i >= 0; i--) {
+            JSONObject instr = instructions.optJSONObject(i);
+            if (instr == null) continue;
+            JSONObject entry = instr.optJSONObject("entry");
+            if (entry != null && entryTweetVerified(entry)) {
+                instructions.remove(i);
+                removed++;
+                continue;
+            }
+            JSONArray moduleItems = instr.optJSONArray("moduleItems");
+            if (moduleItems != null) removed += filterItems(moduleItems);
+        }
+        return removed;
+    }
+
     private static int filterEntries(JSONArray entries) {
         int removed = 0;
         for (int i = entries.length() - 1; i >= 0; i--) {
             JSONObject entry = entries.optJSONObject(i);
             if (entry == null) continue;
-            JSONObject content = entry.optJSONObject("content");
-            if (content == null) continue;
 
-            // A single tweet entry. Current X nests the tweet under content.content;
-            // older builds used content.itemContent.
-            JSONObject itemContent = firstObject(content, "content", "itemContent");
-            if (itemContent != null && itemAuthorVerified(itemContent)) {
+            // A single tweet entry (content.content on current X, content.itemContent on older).
+            if (entryTweetVerified(entry)) {
                 entries.remove(i);
                 removed++;
                 continue;
             }
 
-            // A module of items (conversations, carousels, who-to-follow):
-            // items[].item.content (current X) or items[].item.itemContent (older).
-            JSONArray items = content.optJSONArray("items");
+            // A module of items (conversations, carousels): items[].item.content|itemContent.
+            JSONObject content = entry.optJSONObject("content");
+            JSONArray items = content == null ? null : content.optJSONArray("items");
             if (items != null) {
-                for (int j = items.length() - 1; j >= 0; j--) {
-                    JSONObject moduleItem = items.optJSONObject(j);
-                    JSONObject item = moduleItem == null ? null : moduleItem.optJSONObject("item");
-                    JSONObject ic = item == null ? null : firstObject(item, "content", "itemContent");
-                    if (ic != null && itemAuthorVerified(ic)) {
-                        items.remove(j);
-                        removed++;
-                    }
-                }
-                if (items.length() == 0) entries.remove(i);
+                int r = filterItems(items);
+                removed += r;
+                // Only drop the module if WE emptied it, not if the server sent it empty.
+                if (r > 0 && items.length() == 0) entries.remove(i);
             }
         }
         return removed;
+    }
+
+    /** Removes verified-authored items from an items[]/moduleItems[] array. */
+    private static int filterItems(JSONArray items) {
+        int removed = 0;
+        for (int j = items.length() - 1; j >= 0; j--) {
+            JSONObject moduleItem = items.optJSONObject(j);
+            JSONObject item = moduleItem == null ? null : moduleItem.optJSONObject("item");
+            JSONObject ic = item == null ? null : firstObject(item, "content", "itemContent");
+            if (ic != null && itemAuthorVerified(ic)) {
+                items.remove(j);
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    /** True if the single tweet in this entry is from (or retweets) a verified account. */
+    private static boolean entryTweetVerified(JSONObject entry) {
+        JSONObject content = entry.optJSONObject("content");
+        if (content == null) return false;
+        JSONObject itemContent = firstObject(content, "content", "itemContent");
+        return itemContent != null && itemAuthorVerified(itemContent);
     }
 
     private static boolean itemAuthorVerified(JSONObject itemContent) {
@@ -179,8 +224,12 @@ public final class HideVerified {
         // ext_is_blue_verified is the same signal on the older REST user shape.
         if (user.optBoolean("is_blue_verified", false)) return true;
         if (user.optBoolean("ext_is_blue_verified", false)) return true;
-        String vt = user.optString("verified_type", "");
-        if (vt.length() > 0 && !vt.equalsIgnoreCase("None")) return true;
+        // Android org.json's optString turns an explicit JSON null into the string "null";
+        // guard with isNull so an unset verified_type is not misread as a Business/Gov badge.
+        if (!user.isNull("verified_type")) {
+            String vt = user.optString("verified_type", "");
+            if (vt.length() > 0 && !vt.equalsIgnoreCase("None") && !vt.equalsIgnoreCase("null")) return true;
+        }
         JSONObject legacy = user.optJSONObject("legacy");
         return legacy != null && legacy.optBoolean("verified", false);
     }
