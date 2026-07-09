@@ -94,20 +94,24 @@ public final class HideVerified {
             JSONObject content = entry.optJSONObject("content");
             if (content == null) continue;
 
-            JSONObject itemContent = content.optJSONObject("itemContent");
-            if (itemContent != null && tweetAuthorVerified(itemContent.optJSONObject("tweet_results"))) {
+            // A single tweet entry. Current X nests the tweet under content.content;
+            // older builds used content.itemContent.
+            JSONObject itemContent = firstObject(content, "content", "itemContent");
+            if (itemContent != null && itemAuthorVerified(itemContent)) {
                 entries.remove(i);
                 removed++;
                 continue;
             }
 
+            // A module of items (conversations, carousels, who-to-follow):
+            // items[].item.content (current X) or items[].item.itemContent (older).
             JSONArray items = content.optJSONArray("items");
             if (items != null) {
                 for (int j = items.length() - 1; j >= 0; j--) {
                     JSONObject moduleItem = items.optJSONObject(j);
                     JSONObject item = moduleItem == null ? null : moduleItem.optJSONObject("item");
-                    JSONObject ic = item == null ? null : item.optJSONObject("itemContent");
-                    if (ic != null && tweetAuthorVerified(ic.optJSONObject("tweet_results"))) {
+                    JSONObject ic = item == null ? null : firstObject(item, "content", "itemContent");
+                    if (ic != null && itemAuthorVerified(ic)) {
                         items.remove(j);
                         removed++;
                     }
@@ -118,6 +122,11 @@ public final class HideVerified {
         return removed;
     }
 
+    private static boolean itemAuthorVerified(JSONObject itemContent) {
+        // Current X calls this tweetResult; older builds used tweet_results.
+        return tweetAuthorVerified(firstObject(itemContent, "tweetResult", "tweet_results"));
+    }
+
     private static boolean tweetAuthorVerified(JSONObject tweetResults) {
         if (tweetResults == null) return false;
         JSONObject result = tweetResults.optJSONObject("result");
@@ -126,11 +135,42 @@ public final class HideVerified {
             JSONObject inner = result.optJSONObject("tweet");
             if (inner != null) result = inner;
         }
+        // The tweet's own author.
+        if (userVerified(authorOf(result))) return true;
+        // A retweet of a verified account (the retweeter itself may be unverified).
+        JSONObject legacy = result.optJSONObject("legacy");
+        if (legacy != null) {
+            JSONObject rt = legacy.optJSONObject("retweeted_status_result");
+            JSONObject rtResult = rt == null ? null : rt.optJSONObject("result");
+            if (rtResult != null) {
+                if (rtResult.has("tweet")) {
+                    JSONObject inner = rtResult.optJSONObject("tweet");
+                    if (inner != null) rtResult = inner;
+                }
+                if (userVerified(authorOf(rtResult))) return true;
+            }
+        }
+        return false;
+    }
+
+    /** result.core.user_result.result (current X) or result.core.user_results.result (older). */
+    private static JSONObject authorOf(JSONObject result) {
+        if (result == null) return null;
         JSONObject core = result.optJSONObject("core");
-        if (core == null) return false;
-        JSONObject userResults = core.optJSONObject("user_results");
-        if (userResults == null) return false;
-        return userVerified(userResults.optJSONObject("result"));
+        if (core == null) return null;
+        JSONObject userResults = firstObject(core, "user_result", "user_results");
+        if (userResults == null) return null;
+        return userResults.optJSONObject("result");
+    }
+
+    /** First present child object among the given keys, or null. */
+    private static JSONObject firstObject(JSONObject o, String... keys) {
+        if (o == null) return null;
+        for (String k : keys) {
+            JSONObject v = o.optJSONObject(k);
+            if (v != null) return v;
+        }
+        return null;
     }
 
     private static boolean userVerified(JSONObject user) {
