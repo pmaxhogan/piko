@@ -69,8 +69,12 @@ Nota: su un'installazione pulita, l'animazione 'Suggerimento' può apparire ma s
     <string name="piko_disable_analytics_desc">Blocca gli analytics che vengono inviati ai server Instagram/Facebook</string>
     <string name="piko_disable_discover_people">Disabilita scopri le persone</string>
     <string name="piko_disable_discover_people_desc">Disabilita la sezione scopri le persone sul profilo utente</string>
+    <string name="piko_follow_back_indicator">Abilita indicatore di stato amicizia</string>
+    <string name="piko_fbi_color_indicator">Abilita indicatore di stato dell\'amicizia colorato</string>
+    <string name="piko_fbi_color_indicator_desc">L\'indicatore dello stato di amicizia deve essere abilitato</string>
     <string name="piko_fbi_follows_you">Ti segue</string>
     <string name="piko_fbi_doesnt_follows_you">Non ti segue</string>
+    <string name="piko_fbi_following_each_other">Si seguono a vicenda</string>
     <string name="piko_friendship_status">Stato di amicizia</string>
     <string name="piko_view_story_mentions">Visualizza le menzioni nella storia</string>
     <string name="piko_vsm_title">Menzioni nelle storie</string>
@@ -153,6 +157,8 @@ Nota: su un'installazione pulita, l'animazione 'Suggerimento' può apparire ma s
     <string name="piko_category_about">Informazioni</string>
     <string name="piko_export_pref">Esporta preferenze Piko</string>
     <string name="piko_import_pref">Importa preferenze Piko</string>
+    <string name="piko_reset_pref">Reimposta preferenze Piko</string>
+    <string name="piko_reset_pref_success">Preferenze di Piko eliminate</string>
     <string name="piko_app_version">Versione dell\'app: %s</string>
     <string name="piko_patch_version">Versione patch: %s</string>
     <string name="piko_patch_info_title">Informazioni patch</string>
@@ -194,6 +200,9 @@ Nota: su un'installazione pulita, l'animazione 'Suggerimento' può apparire ma s
     <string name="piko_no_internet">Connettiti a internet</string>
     <string name="piko_tap_here">Clicca qui!!</string>
     <!-- Action Bar Section -->
+    <string name="piko_category_action_bar">Personalizzazione barra di azione</string>
+    <string name="piko_action_bar_button_settings_icon">Icona Impostazioni</string>
+    <string name="piko_action_bar_button_ghost_mode_icon">Icona modalità fantasma</string>
     <string name="piko_settings_on_action_bar">Impostazioni Piko sulla barra delle azioni</string>
     <string name="piko_settings_on_action_bar_desc">Sposta l\'apertura delle impostazioni Piko nella barra delle azioni principale del feed</string>
 </resources>

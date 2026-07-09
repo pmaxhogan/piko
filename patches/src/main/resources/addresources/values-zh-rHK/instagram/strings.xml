@@ -73,6 +73,7 @@
     <string name="piko_follow_back_indicator_desc">在個人檔案頁面中新增「已追蹤你」狀態標籤，並在點擊時顯示詳細的好友關係狀態</string>
     <string name="piko_fbi_follows_you">已追蹤你</string>
     <string name="piko_fbi_doesnt_follows_you">未追蹤你</string>
+    <string name="piko_fbi_following_each_other">互相追蹤中</string>
     <string name="piko_friendship_status">好友關係狀態</string>
     <string name="piko_view_story_mentions">檢視限時動態提及</string>
     <string name="piko_vsm_title">限時動態提及</string>
@@ -155,6 +156,7 @@
     <string name="piko_category_about">關於</string>
     <string name="piko_export_pref">匯出 Piko 偏好設定</string>
     <string name="piko_import_pref">匯入 Piko 偏好設定</string>
+    <string name="piko_reset_pref">重設 Piko 偏好設定</string>
     <string name="piko_app_version">應用程式版本：%s</string>
     <string name="piko_patch_version">補丁版本：%s</string>
     <string name="piko_patch_info_title">補丁資訊</string>
@@ -200,6 +202,9 @@
     <string name="piko_action_bar_main_feed">動態首頁操作列圖標</string>
     <string name="piko_action_bar_user_profile">個人檔案頁面操作列圖標</string>
     <string name="piko_action_bar_chat">訊息操作列圖標</string>
+    <string name="piko_action_bar_button_settings_icon">設定圖標</string>
+    <string name="piko_action_bar_button_ghost_mode_icon">幽靈模式圖標</string>
+    <string name="piko_action_bar_button_profile_info_icon">個人檔案圖標</string>
     <string name="piko_settings_on_action_bar">操作列上顯示 Piko 設定</string>
     <string name="piko_settings_on_action_bar_desc">將 Piko 設定入口移至動態首頁的操作列上</string>
 </resources>

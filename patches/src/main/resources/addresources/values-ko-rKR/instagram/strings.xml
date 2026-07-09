@@ -156,8 +156,11 @@
     <string name="piko_hide_navigation_create">만들기 버튼 숨기기</string>
     <!-- Information Section -->
     <string name="piko_category_about">정보</string>
-    <string name="piko_export_pref">Piko 설정 내보내기</string>
-    <string name="piko_import_pref">Piko 설정 가져오기</string>
+    <string name="piko_export_pref">Piko 환경설정 내보내기</string>
+    <string name="piko_import_pref">Piko 환경설정 가져오기</string>
+    <string name="piko_reset_pref">Piko 환경설정 초기화</string>
+    <string name="piko_reset_pref_success">Piko 환경설정을 삭제하였습니다</string>
+    <string name="piko_reset_pref_failed">Piko 환경설정을 삭제할 수 없습니다</string>
     <string name="piko_app_version">앱 버전: %s</string>
     <string name="piko_patch_version">패치 버전: %s</string>
     <string name="piko_patch_info_title">패치 정보</string>

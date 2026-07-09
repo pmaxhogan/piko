@@ -153,8 +153,6 @@
     <string name="piko_hide_navigation_create">隐藏创建按钮</string>
     <!-- Information Section -->
     <string name="piko_category_about">关于</string>
-    <string name="piko_export_pref">导出 piko 首选项</string>
-    <string name="piko_import_pref">导入 piko 首选项</string>
     <string name="piko_app_version">软件版本：%s</string>
     <string name="piko_patch_version">补丁版本： %s</string>
     <string name="piko_patch_info_title">补丁信息</string>
@@ -196,6 +194,7 @@
     <string name="piko_no_internet">请连接到网络</string>
     <string name="piko_tap_here">点击这里！！</string>
     <!-- Action Bar Section -->
+    <string name="piko_action_bar_button_profile_info_icon">个人资料图标</string>
     <string name="piko_settings_on_action_bar">操作栏上的 Piko 设置</string>
     <string name="piko_settings_on_action_bar_desc">移动Piko 设置到主页操作栏</string>
 </resources>

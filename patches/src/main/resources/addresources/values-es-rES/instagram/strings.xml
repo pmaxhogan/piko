@@ -73,8 +73,11 @@ Nota: En una instalación nueva, es posible que aparezca la animación \"Tip\", 
     <string name="piko_disable_discover_people_desc">Desactiva la sección de descubrir personas en el perfil de usuario</string>
     <string name="piko_follow_back_indicator">Habilitar el indicador de estado de amistad</string>
     <string name="piko_follow_back_indicator_desc">Agrega una etiqueta de estado \"Te sigue de vuelta\" en la página de perfil y muestra un desglose detallado del estado de amistad al hacer clic</string>
+    <string name="piko_fbi_color_indicator">Habilite el indicador de estado de amistad de colores</string>
+    <string name="piko_fbi_color_indicator_desc">Es necesario habilitar el indicador de estado de amistad</string>
     <string name="piko_fbi_follows_you">Te sigue</string>
     <string name="piko_fbi_doesnt_follows_you">No te sigue</string>
+    <string name="piko_fbi_following_each_other">Siguiéndose unos a otros</string>
     <string name="piko_friendship_status">Estado de amistad</string>
     <string name="piko_view_story_mentions">Ver menciones de historia</string>
     <string name="piko_vsm_title">Menciones de historia</string>
@@ -155,8 +158,11 @@ Nota: En una instalación nueva, es posible que aparezca la animación \"Tip\", 
     <string name="piko_hide_navigation_create">Ocultar botón Crear</string>
     <!-- Information Section -->
     <string name="piko_category_about">Acerca de</string>
-    <string name="piko_export_pref">Exportar preferencias de piko</string>
-    <string name="piko_import_pref">Importar preferencias de piko</string>
+    <string name="piko_export_pref">Exportar preferencias de Piko</string>
+    <string name="piko_import_pref">Importar preferencias de Piko</string>
+    <string name="piko_reset_pref">Restablecer preferencias de Piko</string>
+    <string name="piko_reset_pref_success">Se eliminaron las preferencias de Piko</string>
+    <string name="piko_reset_pref_failed">No se pudieron eliminar las preferencias de Piko</string>
     <string name="piko_app_version">Versión de la aplicación: %s</string>
     <string name="piko_patch_version">Versión del parche: %s</string>
     <string name="piko_patch_info_title">Información del parche</string>

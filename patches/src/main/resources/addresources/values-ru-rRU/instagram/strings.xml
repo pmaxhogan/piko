@@ -75,6 +75,7 @@
     <string name="piko_fbi_color_indicator_desc">Индикатор статуса дружбы должен быть включен</string>
     <string name="piko_fbi_follows_you">Подписан на вас</string>
     <string name="piko_fbi_doesnt_follows_you">Не подписан на вас</string>
+    <string name="piko_fbi_following_each_other">Взаимная подписка</string>
     <string name="piko_friendship_status">Статус дружбы</string>
     <string name="piko_view_story_mentions">Просмотр упоминаний в истории</string>
     <string name="piko_vsm_title">Упоминания в истории</string>
@@ -155,8 +156,6 @@
     <string name="piko_hide_navigation_create">Скрыть кнопку «Создать»</string>
     <!-- Information Section -->
     <string name="piko_category_about">Информация</string>
-    <string name="piko_export_pref">Экспорт настроек Piko</string>
-    <string name="piko_import_pref">Импорт настроек Piko</string>
     <string name="piko_app_version">Версия приложения: %s</string>
     <string name="piko_patch_version">Версия патча: %s</string>
     <string name="piko_patch_info_title">Информация о патчах</string>
@@ -198,6 +197,15 @@
     <string name="piko_no_internet">Пожалуйста, подключитесь к интернету</string>
     <string name="piko_tap_here">Нажмите здесь !!</string>
     <!-- Action Bar Section -->
+    <string name="piko_category_action_bar">Настройка панели действий</string>
+    <string name="piko_action_bar_main_feed">Иконки панели действий ленты</string>
+    <string name="piko_action_bar_user_profile">Иконки панели действий профиля</string>
+    <string name="piko_action_bar_chat">Иконки панели действий чата</string>
+    <string name="piko_action_bar_chat_desc">Иконки панели действий в сообщениях</string>
+    <string name="piko_action_bar_inbox">Иконки панели действий входящих</string>
+    <string name="piko_action_bar_button_settings_icon">Иконка настроек</string>
+    <string name="piko_action_bar_button_ghost_mode_icon">Иконка режима «невидимки»</string>
+    <string name="piko_action_bar_button_profile_info_icon">Иконка информации профиля</string>
     <string name="piko_settings_on_action_bar">Кнопка настроек Piko на панели действий</string>
     <string name="piko_settings_on_action_bar_desc">Переместить кнопку настроек Piko на панель действий главной ленты</string>
 </resources>

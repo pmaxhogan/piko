@@ -153,8 +153,6 @@ Catatan: Pada pemasangan pertama kali, animasi 'Tips' mungkin muncul tetapi akan
     <string name="piko_hide_navigation_create">Sembunyikan tombol Buat</string>
     <!-- Information Section -->
     <string name="piko_category_about">Tentang</string>
-    <string name="piko_export_pref">Ekspor preferensi piko</string>
-    <string name="piko_import_pref">Impor preferensi piko</string>
     <string name="piko_app_version">Versi aplikasi: %s</string>
     <string name="piko_patch_version">Versi tambalan: %s</string>
     <string name="piko_patch_info_title">Informasi tambalan</string>

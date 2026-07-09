@@ -158,6 +158,9 @@ Uwaga: Po czystej instalacji może pojawić się animacja podpowiedzi, ale po ki
     <string name="piko_category_about">Informacje</string>
     <string name="piko_export_pref">Eksportuj ustawienia Piko</string>
     <string name="piko_import_pref">Importuj ustawienia Piko</string>
+    <string name="piko_reset_pref">Zresetuj ustawienia Piko</string>
+    <string name="piko_reset_pref_success">Zresetowano ustawienia Piko</string>
+    <string name="piko_reset_pref_failed">Nie udało się zresetować ustawień Piko</string>
     <string name="piko_app_version">Wersja aplikacji: %s</string>
     <string name="piko_patch_version">Wersja modyfikacji: %s</string>
     <string name="piko_patch_info_title">Informacje o modyfikacjach</string>

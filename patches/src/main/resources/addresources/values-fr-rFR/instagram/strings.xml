@@ -71,8 +71,11 @@ Remarque : Lors d’une installation propre, l’animation 'Astuce' peut appara�
     <string name="piko_disable_discover_people_desc">Désactive la section “Découvrir des personnes” sur le profil utilisateur</string>
     <string name="piko_follow_back_indicator">Activer l\'indicateur de statut d\'amitié</string>
     <string name="piko_follow_back_indicator_desc">Ajoute un libellé indiquant qu’un utilisateur vous suit en retour sur sa page de profil et affiche un aperçu détaillé du statut de votre relation lorsqu’on clique dessus</string>
+    <string name="piko_fbi_color_indicator">Activer l\'indicateur de statut d\'amitié coloré</string>
+    <string name="piko_fbi_color_indicator_desc">L\'indicateur de statut d\'amitié doit être activé</string>
     <string name="piko_fbi_follows_you">Vous suit</string>
     <string name="piko_fbi_doesnt_follows_you">Ne vous suit pas</string>
+    <string name="piko_fbi_following_each_other">Suivi mutuel</string>
     <string name="piko_friendship_status">Statut d\'amitié</string>
     <string name="piko_view_story_mentions">Voir les mentions de la story</string>
     <string name="piko_vsm_title">Mentions en story</string>
@@ -153,8 +156,11 @@ Remarque : Lors d’une installation propre, l’animation 'Astuce' peut appara�
     <string name="piko_hide_navigation_create">Masquer le bouton \"Créer\"</string>
     <!-- Information Section -->
     <string name="piko_category_about">À propos</string>
-    <string name="piko_export_pref">Exporter les préférences de piko</string>
-    <string name="piko_import_pref">Importer les préférences de piko</string>
+    <string name="piko_export_pref">Exporter les préférences de Piko</string>
+    <string name="piko_import_pref">Importer les préférences de Piko</string>
+    <string name="piko_reset_pref">Réinitialiser les préférences de Piko</string>
+    <string name="piko_reset_pref_success">Préférences de Piko supprimées</string>
+    <string name="piko_reset_pref_failed">Échec de la suppression des préférences de Piko</string>
     <string name="piko_app_version">Version de l\'application: %s</string>
     <string name="piko_patch_version">Version du patch: %s</string>
     <string name="piko_patch_info_title">Informations sur le patch</string>
@@ -200,7 +206,7 @@ Remarque : Lors d’une installation propre, l’animation 'Astuce' peut appara�
     <string name="piko_action_bar_main_feed">Icônes de la barre d\'actions du fil principal</string>
     <string name="piko_action_bar_user_profile">Icônes de la barre d\'actions du profil utilisateur</string>
     <string name="piko_action_bar_chat">Icônes de la barre d\'actions du chat</string>
-    <string name="piko_action_bar_chat_desc">Icônes de la barre d\'actions dans une conversation privée</string>
+    <string name="piko_action_bar_chat_desc">Icônes de la barre d\'actions dans les messages privés</string>
     <string name="piko_action_bar_inbox">Icônes de la barre d\'actions de la boîte de réception</string>
     <string name="piko_action_bar_button_settings_icon">Icône des paramètres</string>
     <string name="piko_action_bar_button_ghost_mode_icon">Icône du mode fantôme</string>

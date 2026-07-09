@@ -156,8 +156,11 @@ Not: Temiz bir kurulumda, 'İpucu' animasyonu gözükebilir ancak birkaç saniye
     <string name="piko_hide_navigation_create">Oluştur butonunu gizle</string>
     <!-- Information Section -->
     <string name="piko_category_about">Hakkında</string>
-    <string name="piko_export_pref">Piko ayarlarını dışa aktar</string>
-    <string name="piko_import_pref">Piko ayarlarını içe aktar</string>
+    <string name="piko_export_pref">Piko tercihlerini dışa aktar</string>
+    <string name="piko_import_pref">Piko tercihlerini içe aktar</string>
+    <string name="piko_reset_pref">Piko tercihlerini sıfırla</string>
+    <string name="piko_reset_pref_success">Piko tercihleri silindi</string>
+    <string name="piko_reset_pref_failed">Piko tercihleri silinemedi</string>
     <string name="piko_app_version">Uygulama sürümü: %s</string>
     <string name="piko_patch_version">Yama sürümü: %s</string>
     <string name="piko_patch_info_title">Yama bilgisi</string>
