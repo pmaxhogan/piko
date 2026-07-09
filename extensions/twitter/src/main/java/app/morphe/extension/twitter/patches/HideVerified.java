@@ -136,7 +136,9 @@ public final class HideVerified {
     private static boolean userVerified(JSONObject user) {
         if (user == null) return false;
         // is_blue_verified stays true in the API even when the badge is hidden in-UI.
+        // ext_is_blue_verified is the same signal on the older REST user shape.
         if (user.optBoolean("is_blue_verified", false)) return true;
+        if (user.optBoolean("ext_is_blue_verified", false)) return true;
         String vt = user.optString("verified_type", "");
         if (vt.length() > 0 && !vt.equalsIgnoreCase("None")) return true;
         JSONObject legacy = user.optJSONObject("legacy");
