@@ -20,7 +20,8 @@ import java.util.List;
 
 /**
  * Hides tweets and replies from verified accounts (blue check / X Premium,
- * including a hidden checkmark, plus gold/grey org and legacy verified).
+ * including a hidden checkmark, plus gold/grey org and legacy verified), as well
+ * as tweets that retweet or quote-tweet a verified account.
  *
  * It works on the raw JSON server response, hooked at the same Jackson
  * createParser(InputStream) point as "Log server response", BEFORE the app parses
@@ -174,26 +175,27 @@ public final class HideVerified {
 
     private static boolean tweetAuthorVerified(JSONObject tweetResults) {
         if (tweetResults == null) return false;
-        JSONObject result = tweetResults.optJSONObject("result");
-        if (result == null) return false;
+        return resultVerified(tweetResults.optJSONObject("result"), 0);
+    }
+
+    // A tweet is hidden if it is FROM a verified account, RETWEETS one, or QUOTES one
+    // (recursively, so a retweet of a quote of a verified account is caught too).
+    private static boolean resultVerified(JSONObject result, int depth) {
+        if (result == null || depth > 4) return false;
         if (result.has("tweet")) {
             JSONObject inner = result.optJSONObject("tweet");
             if (inner != null) result = inner;
         }
         // The tweet's own author.
         if (userVerified(authorOf(result))) return true;
+        // A quoted verified tweet (hide tweets that quote-tweet a verified account).
+        JSONObject quoted = result.optJSONObject("quoted_status_result");
+        if (quoted != null && resultVerified(quoted.optJSONObject("result"), depth + 1)) return true;
         // A retweet of a verified account (the retweeter itself may be unverified).
         JSONObject legacy = result.optJSONObject("legacy");
         if (legacy != null) {
             JSONObject rt = legacy.optJSONObject("retweeted_status_result");
-            JSONObject rtResult = rt == null ? null : rt.optJSONObject("result");
-            if (rtResult != null) {
-                if (rtResult.has("tweet")) {
-                    JSONObject inner = rtResult.optJSONObject("tweet");
-                    if (inner != null) rtResult = inner;
-                }
-                if (userVerified(authorOf(rtResult))) return true;
-            }
+            if (rt != null && resultVerified(rt.optJSONObject("result"), depth + 1)) return true;
         }
         return false;
     }
