@@ -15,6 +15,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -68,7 +69,9 @@ public final class HideVerified {
         int removed = 0;
         if (node instanceof JSONObject) {
             JSONObject o = (JSONObject) node;
-            List<String> keys = new ArrayList<>(o.keySet());
+            List<String> keys = new ArrayList<>();
+            Iterator<String> it = o.keys();   // Android org.json exposes keys(), not keySet()
+            while (it.hasNext()) keys.add(it.next());
             for (String k : keys) {
                 Object v = o.opt(k);
                 if ("entries".equals(k) && v instanceof JSONArray) {
