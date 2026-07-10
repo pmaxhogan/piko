@@ -15,19 +15,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Hides tweets and replies from verified accounts (blue check / X Premium,
  * including a hidden checkmark, plus gold/grey org and legacy verified), as well
- * as tweets that retweet or quote-tweet a verified account.
+ * as tweets that retweet or quote-tweet a verified account, and replies TO a
+ * verified account (even when the replier is not verified).
  *
  * It works on the raw JSON server response, hooked at the same Jackson
  * createParser(InputStream) point as "Log server response", BEFORE the app parses
  * it into its obfuscated model. That makes it independent of per-version obfuscation
- * and applies uniformly to the home timeline, conversations/replies, search, lists,
- * bookmarks, pinned tweets, and reply-pagination.
+ * and covers the home timeline, profiles, conversations/replies, and search alike.
  *
  * Fail-safe by construction: if anything is unexpected the original bytes are
  * returned untouched, so a response is never corrupted.
@@ -66,7 +68,10 @@ public final class HideVerified {
     static String filterJson(String input) {
         try {
             Object root = new JSONTokener(input).nextValue();
-            int removed = walk(root);
+            // First pass: every verified user's id, so replies TO them can be matched.
+            Set<String> verifiedIds = new HashSet<>();
+            collectVerifiedIds(root, verifiedIds);
+            int removed = walk(root, verifiedIds);
             if (removed <= 0) return input;
             String out = root.toString();   // Android JSONObject.toString() can return null on internal error
             return out != null ? out : input;
@@ -75,7 +80,22 @@ public final class HideVerified {
         }
     }
 
-    private static int walk(Object node) {
+    private static void collectVerifiedIds(Object node, Set<String> ids) {
+        if (node instanceof JSONObject) {
+            JSONObject o = (JSONObject) node;
+            if (userVerified(o)) {
+                String id = o.optString("rest_id", "");
+                if (!id.isEmpty()) ids.add(id);
+            }
+            Iterator<String> it = o.keys();
+            while (it.hasNext()) collectVerifiedIds(o.opt(it.next()), ids);
+        } else if (node instanceof JSONArray) {
+            JSONArray a = (JSONArray) node;
+            for (int i = 0; i < a.length(); i++) collectVerifiedIds(a.opt(i), ids);
+        }
+    }
+
+    private static int walk(Object node, Set<String> ids) {
         int removed = 0;
         if (node instanceof JSONObject) {
             JSONObject o = (JSONObject) node;
@@ -87,46 +107,46 @@ public final class HideVerified {
                 if ("instructions".equals(k) && v instanceof JSONArray) {
                     // Singular pinned/replaced entries and module pagination live here,
                     // not inside an "entries" array.
-                    removed += filterInstructions((JSONArray) v);
+                    removed += filterInstructions((JSONArray) v, ids);
                 } else if ("entries".equals(k) && v instanceof JSONArray) {
-                    removed += filterEntries((JSONArray) v);
+                    removed += filterEntries((JSONArray) v, ids);
                 }
-                removed += walk(v);
+                removed += walk(v, ids);
             }
         } else if (node instanceof JSONArray) {
             JSONArray a = (JSONArray) node;
-            for (int i = 0; i < a.length(); i++) removed += walk(a.opt(i));
+            for (int i = 0; i < a.length(); i++) removed += walk(a.opt(i), ids);
         }
         return removed;
     }
 
     // TimelinePinEntry / TimelineReplaceEntry carry a single "entry"; TimelineAddToModule
     // carries "moduleItems". "entries" arrays inside instructions are handled by walk().
-    private static int filterInstructions(JSONArray instructions) {
+    private static int filterInstructions(JSONArray instructions, Set<String> ids) {
         int removed = 0;
         for (int i = instructions.length() - 1; i >= 0; i--) {
             JSONObject instr = instructions.optJSONObject(i);
             if (instr == null) continue;
             JSONObject entry = instr.optJSONObject("entry");
-            if (entry != null && entryTweetVerified(entry)) {
+            if (entry != null && entryHidden(entry, ids)) {
                 instructions.remove(i);
                 removed++;
                 continue;
             }
             JSONArray moduleItems = instr.optJSONArray("moduleItems");
-            if (moduleItems != null) removed += filterItems(moduleItems);
+            if (moduleItems != null) removed += filterItems(moduleItems, ids);
         }
         return removed;
     }
 
-    private static int filterEntries(JSONArray entries) {
+    private static int filterEntries(JSONArray entries, Set<String> ids) {
         int removed = 0;
         for (int i = entries.length() - 1; i >= 0; i--) {
             JSONObject entry = entries.optJSONObject(i);
             if (entry == null) continue;
 
             // A single tweet entry (content.content on current X, content.itemContent on older).
-            if (entryTweetVerified(entry)) {
+            if (entryHidden(entry, ids)) {
                 entries.remove(i);
                 removed++;
                 continue;
@@ -136,7 +156,7 @@ public final class HideVerified {
             JSONObject content = entry.optJSONObject("content");
             JSONArray items = content == null ? null : content.optJSONArray("items");
             if (items != null) {
-                int r = filterItems(items);
+                int r = filterItems(items, ids);
                 removed += r;
                 // Only drop the module if WE emptied it, not if the server sent it empty.
                 if (r > 0 && items.length() == 0) entries.remove(i);
@@ -145,14 +165,14 @@ public final class HideVerified {
         return removed;
     }
 
-    /** Removes verified-authored items from an items[]/moduleItems[] array. */
-    private static int filterItems(JSONArray items) {
+    /** Removes hidden items from an items[]/moduleItems[] array. */
+    private static int filterItems(JSONArray items, Set<String> ids) {
         int removed = 0;
         for (int j = items.length() - 1; j >= 0; j--) {
             JSONObject moduleItem = items.optJSONObject(j);
             JSONObject item = moduleItem == null ? null : moduleItem.optJSONObject("item");
             JSONObject ic = item == null ? null : firstObject(item, "content", "itemContent");
-            if (ic != null && itemAuthorVerified(ic)) {
+            if (ic != null && itemHidden(ic, ids)) {
                 items.remove(j);
                 removed++;
             }
@@ -160,27 +180,23 @@ public final class HideVerified {
         return removed;
     }
 
-    /** True if the single tweet in this entry is from (or retweets) a verified account. */
-    private static boolean entryTweetVerified(JSONObject entry) {
+    /** True if the single tweet in this entry should be hidden. */
+    private static boolean entryHidden(JSONObject entry, Set<String> ids) {
         JSONObject content = entry.optJSONObject("content");
         if (content == null) return false;
         JSONObject itemContent = firstObject(content, "content", "itemContent");
-        return itemContent != null && itemAuthorVerified(itemContent);
+        return itemContent != null && itemHidden(itemContent, ids);
     }
 
-    private static boolean itemAuthorVerified(JSONObject itemContent) {
+    private static boolean itemHidden(JSONObject itemContent, Set<String> ids) {
         // Current X calls this tweetResult; older builds used tweet_results.
-        return tweetAuthorVerified(firstObject(itemContent, "tweetResult", "tweet_results"));
+        JSONObject tweetResult = firstObject(itemContent, "tweetResult", "tweet_results");
+        return tweetResult != null && shouldHide(tweetResult.optJSONObject("result"), ids, 0);
     }
 
-    private static boolean tweetAuthorVerified(JSONObject tweetResults) {
-        if (tweetResults == null) return false;
-        return resultVerified(tweetResults.optJSONObject("result"), 0);
-    }
-
-    // A tweet is hidden if it is FROM a verified account, RETWEETS one, or QUOTES one
-    // (recursively, so a retweet of a quote of a verified account is caught too).
-    private static boolean resultVerified(JSONObject result, int depth) {
+    // A tweet is hidden if it is FROM a verified account, REPLIES TO one, or RETWEETS /
+    // QUOTES one (recursively, so a retweet of a quote of a verified account is caught too).
+    private static boolean shouldHide(JSONObject result, Set<String> ids, int depth) {
         if (result == null || depth > 4) return false;
         if (result.has("tweet")) {
             JSONObject inner = result.optJSONObject("tweet");
@@ -188,15 +204,18 @@ public final class HideVerified {
         }
         // The tweet's own author.
         if (userVerified(authorOf(result))) return true;
-        // A quoted verified tweet (hide tweets that quote-tweet a verified account).
-        JSONObject quoted = result.optJSONObject("quoted_status_result");
-        if (quoted != null && resultVerified(quoted.optJSONObject("result"), depth + 1)) return true;
-        // A retweet of a verified account (the retweeter itself may be unverified).
         JSONObject legacy = result.optJSONObject("legacy");
         if (legacy != null) {
+            // A reply to a verified account (the replier itself may be unverified).
+            String replyTo = legacy.optString("in_reply_to_user_id_str", "");
+            if (!replyTo.isEmpty() && ids.contains(replyTo)) return true;
+            // A retweet of a hidden tweet.
             JSONObject rt = legacy.optJSONObject("retweeted_status_result");
-            if (rt != null && resultVerified(rt.optJSONObject("result"), depth + 1)) return true;
+            if (rt != null && shouldHide(rt.optJSONObject("result"), ids, depth + 1)) return true;
         }
+        // A quote of a hidden tweet.
+        JSONObject quoted = result.optJSONObject("quoted_status_result");
+        if (quoted != null && shouldHide(quoted.optJSONObject("result"), ids, depth + 1)) return true;
         return false;
     }
 
