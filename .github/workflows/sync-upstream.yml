@@ -1,0 +1,121 @@
+name: Sync upstream (crimera/piko)
+
+# Keeps this fork's main branch current with crimera/piko:main without manual
+# work, so Vantage X tracks new X versions automatically the way the YouTube
+# builds track anddea. Nightly + manual. If the fork is behind upstream, it
+# opens a PR that merges upstream in and AUTO-MERGES it only if it is cleanly
+# mergeable (no conflict with the Vantage-only commits). If it conflicts, the
+# PR is left open for Max to resolve by hand. After a clean merge it dispatches
+# build-mpp.yml explicitly, because a push made with GITHUB_TOKEN does not
+# trigger push workflows on its own (workflow_dispatch via the API is the
+# documented exception, so no PAT is needed).
+#
+# SECURITY (why this cannot be abused to auto-merge malicious code):
+#   - Triggers are ONLY schedule + workflow_dispatch. NOT pull_request /
+#     pull_request_target, so an attacker's PR can never run this job, and the
+#     job always runs the workflow code committed on main.
+#   - It creates its OWN PR whose head is crimera/piko:main (upstream's real
+#     branch, which no attacker controls) and merges ONLY that specific PR, by
+#     number, and ONLY after asserting head-repo owner == crimera AND head-ref
+#     == main AND mergeable == MERGEABLE. It never scans for, nor merges, any
+#     other/external/labeled PR.
+#
+# Requires the repo setting "Allow GitHub Actions to create and approve pull
+# requests" (Settings > Actions > General), or gh pr create fails.
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 07:00 UTC nightly (before the Vantage X 10:00 build)
+  workflow_dispatch:
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+env:
+  UPSTREAM: crimera/piko
+  BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout fork main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Detect if behind upstream
+        id: check
+        run: |
+          set -euo pipefail
+          git remote add upstream "https://github.com/${UPSTREAM}.git" 2>/dev/null || true
+          git fetch --quiet upstream "${BRANCH}"
+          BEHIND="$(git rev-list --count "HEAD..upstream/${BRANCH}")"
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+          echo "Fork is $BEHIND commit(s) behind ${UPSTREAM}:${BRANCH}."
+
+      - name: Sync via PR (auto-merge if clean, else leave open)
+        if: steps.check.outputs.behind != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          UP_OWNER="${UPSTREAM%%/*}"
+
+          # Reuse an existing open sync PR (a prior conflicting one) instead of
+          # spamming duplicates. gh's --head filter matches the head BRANCH NAME
+          # only (not "owner:branch"), so filter on base and select the head repo
+          # owner in jq. Selecting on BOTH owner and ref matters: matching the ref
+          # alone would let a third party's `theirfork:main` PR be picked up here.
+          NUM="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+                   --base "$BRANCH" \
+                   --json number,headRefName,headRepositoryOwner \
+                   --jq "[.[] | select(.headRepositoryOwner.login == \"${UP_OWNER}\" and .headRefName == \"${BRANCH}\")][0].number // empty" || true)"
+          if [ -z "$NUM" ]; then
+            NUM="$(gh pr create --repo "$GITHUB_REPOSITORY" \
+                     --base "$BRANCH" --head "${UP_OWNER}:${BRANCH}" \
+                     --title "Sync upstream ${UPSTREAM}:${BRANCH} ($(date -u +%Y-%m-%d))" \
+                     --body "Automated nightly sync from ${UPSTREAM}:${BRANCH}. Auto-merges only if cleanly mergeable with the Vantage-only commits; otherwise left open for manual resolution." \
+                     | grep -oE '[0-9]+$')"
+            echo "Opened sync PR #$NUM"
+          else
+            echo "Reusing existing open sync PR #$NUM"
+          fi
+
+          # LOCKDOWN: verify this PR really is upstream crimera:main before trusting it.
+          read -r HR HREF HSHA < <(gh pr view "$NUM" --repo "$GITHUB_REPOSITORY" \
+            --json headRepositoryOwner,headRefName,headRefOid \
+            --jq '[.headRepositoryOwner.login, .headRefName, .headRefOid] | @tsv')
+          if [ "$HR" != "$UP_OWNER" ] || [ "$HREF" != "$BRANCH" ]; then
+            echo "::error::PR #$NUM head is ${HR}:${HREF}, not ${UP_OWNER}:${BRANCH} - refusing to merge."
+            exit 1
+          fi
+          echo "Lockdown OK: PR #$NUM head is ${HR}:${HREF} @ ${HSHA}"
+
+          # Poll mergeability (GitHub computes it async).
+          STATE=""
+          for i in $(seq 1 8); do
+            STATE="$(gh pr view "$NUM" --repo "$GITHUB_REPOSITORY" --json mergeable --jq '.mergeable')"
+            [ "$STATE" != "UNKNOWN" ] && break
+            echo "mergeable=UNKNOWN, retry $i ..."; sleep 5
+          done
+          echo "mergeable=$STATE"
+
+          if [ "$STATE" = "MERGEABLE" ]; then
+            gh pr merge "$NUM" --repo "$GITHUB_REPOSITORY" --merge
+            echo "Auto-merged sync PR #$NUM (clean). Dispatching build-mpp.yml ..."
+            gh workflow run build-mpp.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+          elif [ "$STATE" = "CONFLICTING" ]; then
+            gh pr edit "$NUM" --repo "$GITHUB_REPOSITORY" --add-label needs-manual-merge 2>/dev/null || true
+            echo "::warning::Sync PR #$NUM CONFLICTS with the Vantage-only commits - left open for manual resolution."
+          else
+            echo "::warning::Sync PR #$NUM mergeability is '$STATE' - leaving it open."
+          fi
