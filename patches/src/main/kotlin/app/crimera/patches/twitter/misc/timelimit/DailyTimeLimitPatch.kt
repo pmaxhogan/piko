@@ -80,6 +80,14 @@ internal val dailyTimeLimitResourcePatch =
                 pref.setAttribute("android:title", "Daily time limit")
                 pref.setAttribute("android:key", "pref_vantage_time_limit")
                 pref.setAttribute("android:order", "109")
+                // An explicit intent child: the preference framework starts it on
+                // click regardless of how X dispatches its own rows, so the row
+                // works even if the bytecode click hook below is never reached.
+                val intent = editor.createElement("intent")
+                intent.setAttribute("android:action", "android.intent.action.VIEW")
+                intent.setAttribute("android:targetPackage", "com.twitter.android")
+                intent.setAttribute("android:targetClass", "$JAVA_PACKAGE.LimitConfigActivity")
+                pref.appendChild(intent)
                 parent.appendChild(pref)
             }
         }
