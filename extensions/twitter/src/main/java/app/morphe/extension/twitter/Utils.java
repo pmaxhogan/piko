@@ -13,11 +13,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.widget.LinearLayout;
+import android.util.TypedValue;
 
 import com.google.android.material.tabs.TabLayout$g;
 
@@ -35,8 +38,9 @@ import static app.morphe.extension.shared.StringRef.str;
 
 import app.morphe.extension.crimera.settings.BooleanSetting;
 import app.morphe.extension.crimera.settings.StringSetting;
-import app.morphe.extension.shared.settings.preference.PikoSharedPrefCategory;
 import app.morphe.extension.twitter.settings.Settings;
+import app.morphe.extension.shared.ResourceUtils;
+import app.morphe.extension.shared.settings.preference.PikoSharedPrefCategory;
 
 @SuppressWarnings("unused")
 public class Utils {
@@ -235,16 +239,38 @@ public class Utils {
     }
 
     private static void postDownload(String filename, File tempFile, File file, Intent intent, long downloadId,
-            BroadcastReceiver broadcastReceiver) {
+            BroadcastReceiver broadcastReceiver, String url, String mediaName, String ext) {
         long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
         if (id == downloadId) {
-            boolean result = tempFile.renameTo(file);
-            if (!result) {
-                toast("Failed to rename temp file");
+            ctx.unregisterReceiver(broadcastReceiver);
+            boolean success = false;
+            DownloadManager manager = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
+            DownloadManager.Query query = new DownloadManager.Query();
+            query.setFilterById(downloadId);
+            try (Cursor cursor = manager.query(query)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    if (statusIndex != -1 && cursor.getInt(statusIndex) == DownloadManager.STATUS_SUCCESSFUL) {
+                        success = true;
+                    }
+                }
+            } catch (Exception e) {
+                app.morphe.extension.crimera.PikoUtils.logger(e);
             }
 
-            toast(str("exo_download_completed") + ": " + filename);
-            ctx.unregisterReceiver(broadcastReceiver);
+            if (success) {
+                boolean result = tempFile.renameTo(file);
+                if (!result) {
+                    toast("Failed to rename temp file");
+                } else {
+                    toast(str("exo_download_completed") + ": " + filename);
+                }
+            } else if (url != null && url.contains("name=orig")) {
+                String fallbackUrl = url.replace("name=orig", "name=4096x4096");
+                downloadFile(fallbackUrl, mediaName, ext);
+            } else {
+                toast("Download failed: " + filename);
+            }
         }
     }
 
@@ -273,41 +299,57 @@ public class Utils {
             return;
         }
 
-        DownloadManager manager = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
-        long downloadId = manager.enqueue(request);
-
         File tempFile = new File(
                 Environment.getExternalStorageDirectory(),
                 getPath(publicFolder, subFolder, "temp_" + filename));
+        if (tempFile.exists()) {
+            tempFile.delete();
+        }
+
+        DownloadManager manager = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
+        long downloadId = manager.enqueue(request);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ctx.registerReceiver(new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    postDownload(filename, tempFile, file, intent, downloadId, this);
+                    postDownload(filename, tempFile, file, intent, downloadId, this, url, mediaName, ext);
                 }
             }, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED);
         } else {
             ctx.registerReceiver(new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    postDownload(filename, tempFile, file, intent, downloadId, this);
+                    postDownload(filename, tempFile, file, intent, downloadId, this, url, mediaName, ext);
                 }
             }, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         }
     }
 
     public static String getTheme() {
-        String theme = "light";
-        String three_state_night_mode = defsp.getString("three_state_night_mode", theme);
-        if (!(three_state_night_mode.equals("0"))) {
-            String dark_mode_appr = defsp.getString("dark_mode_appearance", "lights_out");
-            if (dark_mode_appr.equals("lights_out"))
-                theme = "dark";
-            else if (dark_mode_appr.equals("dim"))
-                theme = "dim";
-        }
-        return theme;
+        String nightMode = defsp.getString("three_state_night_mode", "2");
+        String darkModeAppearance = defsp.getString("dark_mode_appearance", "lights_out");
+        int uiMode = ctx.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        return resolveTheme(nightMode, darkModeAppearance, uiMode == Configuration.UI_MODE_NIGHT_YES);
+    }
+
+    private static String resolveTheme(String nightMode, String darkModeAppearance, boolean systemDark) {
+        boolean darkTheme = "1".equals(nightMode) || ("2".equals(nightMode) && systemDark);
+        if (!darkTheme) return "light";
+        if ("lights_out".equals(darkModeAppearance)) return "dark";
+        if ("dim".equals(darkModeAppearance)) return "dim";
+        return "light";
+    }
+
+    public static int resolveColor(Context context, String attrName) {
+        TypedValue tv = new TypedValue();
+        int attrId = ResourceUtils.getAttrIdentifier(attrName);
+        context.getTheme().resolveAttribute(attrId, tv, true);
+        return tv.data;
+    }
+
+    public static int resolveColor(String attrName) {
+        return resolveColor(ctx, attrName);
     }
 
     private static void toast(String msg){

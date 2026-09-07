@@ -11,27 +11,33 @@ import static app.morphe.extension.instagram.utils.IgStr.str;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.WindowInsets;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.util.function.Supplier;
+
+import app.morphe.extension.crimera.downloader.StorageUtils;
 import app.morphe.extension.instagram.constants.Constants;
+import app.morphe.extension.instagram.constants.UI;
 import app.morphe.extension.instagram.settings.preference.Helper;
 import app.morphe.extension.instagram.settings.preference.ScreenBuilder;
 import app.morphe.extension.instagram.settings.preference.widgets.InstagramPreferenceStyle;
+import app.morphe.extension.instagram.settings.preference.widgets.SwitchPref;
 import app.morphe.extension.instagram.settings.SettingsStatus;
+import app.morphe.extension.instagram.theme.MaterialYouTheme;
 
 public class SettingsActivity extends Activity {
 
@@ -47,10 +53,12 @@ public class SettingsActivity extends Activity {
         super.onCreate(bundle);
 
         String displayTitle = null;
+        String fragmentName = null;
 
         // Extract both variables safely from the incoming intent bundle
         if (getIntent() != null && getIntent().getExtras() != null) {
             displayTitle = str(getIntent().getStringExtra(Constants.PIKO_FRAGMENT_TITLE));
+            fragmentName = getIntent().getStringExtra(Constants.PIKO_FRAGMENT_NAME);
         }
 
         // Fallback to default localized string if no custom title was provided in the intent
@@ -58,36 +66,42 @@ public class SettingsActivity extends Activity {
             displayTitle = str("piko_title_settings");
         }
 
-        createLayout( displayTitle);
+        boolean isRootSettings = fragmentName == null || Constants.PIKO_FRAGMENT_SETTINGS.equals(fragmentName);
+        createLayout(displayTitle, isRootSettings);
 
-        SettingsFragment fragment = new SettingsFragment();
-        if (getIntent() != null && getIntent().getExtras() != null) {
-            fragment.setArguments(getIntent().getExtras());
+        if (bundle == null) {
+            SettingsFragment fragment = new SettingsFragment();
+            if (getIntent() != null && getIntent().getExtras() != null) {
+                fragment.setArguments(getIntent().getExtras());
+            }
+
+            getFragmentManager().beginTransaction().replace(1001, fragment).commit();
         }
-
-        getFragmentManager().beginTransaction().replace(1001, fragment).commit();
     }
 
     @SuppressLint("ResourceType")
-    private void createLayout(String displayTitle) {
+    private void createLayout(String displayTitle, boolean isRootSettings) {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(InstagramPreferenceStyle.backgroundColor(this));
+        root.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
 
-        applySystemBarStyle();
+        InstagramPreferenceStyle.applySystemBarStyle(this);
 
         // ---------- Toolbar ----------
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        toolbar.setBackgroundColor(InstagramPreferenceStyle.backgroundColor(this));
+        toolbar.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
 
         int toolbarPadding = InstagramPreferenceStyle.dp(this, 15);
         toolbar.setPadding(toolbarPadding, InstagramPreferenceStyle.dp(this, 10), toolbarPadding, InstagramPreferenceStyle.dp(this, 8));
 
         int iconSize = InstagramPreferenceStyle.dp(this, 44);
 
-        BackArrowView back = new BackArrowView(this);
+        ImageView back = new ImageView(this);
+        UI.setThemedIcon(back, UI.DRAWABLE_ARROW_BACK);
+        back.setScaleType(ImageView.ScaleType.CENTER);
+        back.setPaddingRelative(0, 0, InstagramPreferenceStyle.dp(this, 16), 0);
         LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(iconSize, iconSize);
         backParams.gravity = android.view.Gravity.CENTER_VERTICAL;
         back.setLayoutParams(backParams);
@@ -100,17 +114,28 @@ public class SettingsActivity extends Activity {
 
         titleTextView = new TextView(this);
         titleTextView.setText(displayTitle); // Dynamically bound from intent data
-        titleTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
+        int titleTextSize = isRootSettings ? 25 : 20;
+        titleTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, titleTextSize);
         titleTextView.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         titleTextView.setIncludeFontPadding(false);
+        titleTextView.setMaxLines(1);
+        if (!isRootSettings) {
+            titleTextView.setAutoSizeTextTypeUniformWithConfiguration(
+                    18,
+                    20,
+                    1,
+                    TypedValue.COMPLEX_UNIT_SP
+            );
+        }
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                1.0f
         );
         titleParams.gravity = android.view.Gravity.CENTER_VERTICAL;
         titleParams.leftMargin = InstagramPreferenceStyle.dp(this, 7);
         titleTextView.setLayoutParams(titleParams);
-        titleTextView.setTextColor(InstagramPreferenceStyle.primaryTextColor(this));
+        titleTextView.setTextColor(InstagramPreferenceStyle.primaryTextColor());
 
         toolbar.addView(back);
         toolbar.addView(titleTextView);
@@ -127,7 +152,7 @@ public class SettingsActivity extends Activity {
         content = new LinearLayout(this);
         content.setId(1001);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setBackgroundColor(InstagramPreferenceStyle.backgroundColor(this));
+        content.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
 
         root.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT, 1));
 
@@ -157,55 +182,37 @@ public class SettingsActivity extends Activity {
         return customContainer;
     }
 
-    // (Keep original BackArrowView & applySystemBarStyle methods unchanged)
-    private static class BackArrowView extends View {
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        BackArrowView(Context context) {
-            super(context);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-
-            float centerY = getHeight() / 2f;
-            float tipX = InstagramPreferenceStyle.dp(getContext(), 2);
-            float endX = InstagramPreferenceStyle.dp(getContext(), 21);
-            float headEndX = InstagramPreferenceStyle.dp(getContext(), 10);
-            float headOffset = InstagramPreferenceStyle.dp(getContext(), 7);
-
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(InstagramPreferenceStyle.dp(getContext(), 1.9f));
-            paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setStrokeJoin(Paint.Join.ROUND);
-            paint.setColor(InstagramPreferenceStyle.primaryTextColor(getContext()));
-
-            canvas.drawLine(tipX, centerY, endX, centerY, paint);
-            canvas.drawLine(tipX, centerY, headEndX, centerY - headOffset, paint);
-            canvas.drawLine(tipX, centerY, headEndX, centerY + headOffset, paint);
-        }
-    }
-
-    private void applySystemBarStyle() {
-        getWindow().setStatusBarColor(InstagramPreferenceStyle.backgroundColor(this));
-        getWindow().setNavigationBarColor(InstagramPreferenceStyle.backgroundColor(this));
-
-        int flags = getWindow().getDecorView().getSystemUiVisibility();
-        if (InstagramPreferenceStyle.isDark(this)) {
-            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        } else {
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        }
-        getWindow().getDecorView().setSystemUiVisibility(flags);
-    }
-
     // (Keep the nested static SettingsFragment class unchanged)
     public static class SettingsFragment extends PreferenceFragment {
 
         Context context;
+
+        private void refreshPreferenceSummary(
+                String key,
+                Supplier<CharSequence> summaryProvider
+        ) {
+            Preference preference = findPreference(key);
+            if (preference != null) {
+                preference.setSummary(summaryProvider.get());
+            }
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+            refreshPreferenceSummary(
+                    "piko_download_set_path",
+                    StorageUtils::getCustomPathForDisplay
+            );
+            Preference preference = findPreference(Settings.AMOLED_THEME.key);
+            if (preference instanceof SwitchPref) {
+                SwitchPref amoledPreference = (SwitchPref) preference;
+                amoledPreference.setChecked(MaterialYouTheme.isAmoledEnabled());
+                amoledPreference.setSwitchInteractionEnabled(
+                        MaterialYouTheme.canEnableAmoled(getActivity())
+                );
+            }
+        }
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -243,6 +250,15 @@ public class SettingsActivity extends Activity {
                 screenBuilder.buildDeveloperSection();
             } else if(fragment_name.equals(Constants.PIKO_FRAGMENT_ABOUT)) {
                 screenBuilder.aboutSection(SettingsStatus.FLAGS);
+            } else if (fragment_name.equals(Constants.PIKO_FRAGMENT_ACTION_BAR)) {
+                screenBuilder.buildActionBarSection();
+            } else if (fragment_name.equals(Constants.PIKO_FRAGMENT_DM)) {
+                screenBuilder.dmSection();
+            } else if (fragment_name.equals(Constants.PIKO_FRAGMENT_FILTER_CONTENT)) {
+                screenBuilder.filterContentSection();
+            } else if (fragment_name.equals(Constants.PIKO_FRAGMENT_REC_FLAGS)) {
+                preferenceManager.setSharedPreferencesName(Constants.REC_FLAGS);
+                screenBuilder.buildRecommendedFlagsSection();
             }
 
             setPreferenceScreen(screen);
@@ -267,11 +283,11 @@ public class SettingsActivity extends Activity {
                 listView.setDividerHeight(0);
                 listView.setSelector(new ColorDrawable(Color.TRANSPARENT));
                 listView.setCacheColorHint(Color.TRANSPARENT);
-                listView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor(context));
+                listView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
             }
 
             if (rootView != null) {
-                rootView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor(context));
+                rootView.setBackgroundColor(InstagramPreferenceStyle.backgroundColor());
             }
         }
     }

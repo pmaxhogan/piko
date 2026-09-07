@@ -86,6 +86,13 @@ public class SettingsStatus {
     public static boolean customFont = false;
     public static boolean customEmojiFont = false;
     public static boolean inlineDownloadButton = false;
+
+    public static boolean moreInfoOnProfile = false;
+
+    public static void moreInfoOnProfile() {
+        moreInfoOnProfile = true;
+    }
+
     public static void inlineDownloadButton() {
         inlineDownloadButton = true;
     }
@@ -374,10 +381,7 @@ public class SettingsStatus {
         hidePostMetrics = true;
     }
 
-    public static boolean disUnifyXChatSystem = false;
-    public static void disUnifyXChatSystem() {
-        disUnifyXChatSystem = true;
-    }
+
 
     public static boolean exportLoginToken = false;
     public static void exportLoginToken() {
@@ -389,12 +393,28 @@ public class SettingsStatus {
         blockRedirectingToXLite = true;
     }
 
+    public static boolean blockUpdateScreen = false;
+    public static void blockUpdateScreen() {
+        blockUpdateScreen = true;
+    }
+
+    public static boolean enableNativeShareMenu = false;
+    public static void enableNativeShareMenu() {
+        enableNativeShareMenu = true;
+    }
+
+    public static boolean externalDownloader = false;
+    public static void externalDownloader() {
+        externalDownloader = true;
+    }
+
+
     public static boolean enableTimelineSection() {
         return ( hidePostMetrics || hideNavbarBadge || showSourceLabel || hideCommBadge || showSensitiveMedia || hideNudgeButton || disableAutoTimelineScroll || forceTranslate || hidePromoteButton || hideCommunityNote || hideLiveThreads || hideBanner || hideInlineBmk || showPollResultsEnabled || hideImmersivePlayer || enableVidAutoAdvance || enableForceHD);
     }
 
     public static boolean enableMiscSection() {
-        return ( disUnifyXChatSystem || pauseSearchSuggestions || removeSearchSuggestions || hideSocialProof || roundOffNumbers || enableFontMod || hideRecommendedUsers || hideFAB || hideViewCount || customSharingDomainEnabled || hideFABBtns);
+        return ( pauseSearchSuggestions || removeSearchSuggestions || hideSocialProof || roundOffNumbers || enableFontMod || hideRecommendedUsers || hideFAB || hideViewCount || customSharingDomainEnabled || hideFABBtns);
     }
 
     public static boolean enableAdsSection() {
@@ -402,11 +422,11 @@ public class SettingsStatus {
     }
 
     public static boolean enableNativeSection() {
-        return (nativeDownloader || nativeTranslator || nativeReaderMode || shareImage || browseObject);
+        return ( enableNativeShareMenu || nativeDownloader || nativeTranslator || nativeReaderMode || shareImage);
     }
 
     public static boolean enableDownloadSection() {
-        return (changeDownloadEnabled || mediaLinkHandle);
+        return (externalDownloader || changeDownloadEnabled || mediaLinkHandle);
     }
 
     public static boolean enablePremiumSection() {
@@ -414,7 +434,7 @@ public class SettingsStatus {
     }
 
     public static boolean enableCustomisationSection() {
-        return (appIconCustomisation || notificationTabCustomisation || searchTabCustomisation || typeaheadCustomisation || exploreTabCustomisation || customPostFontSize || inlineBarCustomisation || navBarCustomisation || sideBarCustomisation || profileTabCustomisation || timelineTabCustomisation || defaultReplySortFilter);
+        return (moreInfoOnProfile || appIconCustomisation || notificationTabCustomisation || searchTabCustomisation || typeaheadCustomisation || exploreTabCustomisation || customPostFontSize || inlineBarCustomisation || navBarCustomisation || sideBarCustomisation || profileTabCustomisation || timelineTabCustomisation || defaultReplySortFilter);
     }
     public static boolean loggingSection() {
         return (serverResponseLogging || serverResponseLoggingOverwriteFile);
