@@ -108,15 +108,21 @@ public final class TimeLimit implements Application.ActivityLifecycleCallbacks {
                 + "m stores=" + store.storeCount() + " testHooks=" + BuildValues.testHooksEnabled());
     }
 
-    private boolean shortcutPublished;
+    /** elapsedRealtime of the last shortcut presence check; X rewrites its own dynamic shortcuts, so re-check periodically. */
+    private long shortcutCheckedAt = -SHORTCUT_RECHECK_MS;
+    private static final long SHORTCUT_RECHECK_MS = 60_000L;
 
     /**
      * Adds the launcher long-press shortcut. ShortcutManager rate-limits (and
      * silently refuses) calls from an app that is not in the foreground, so this
-     * runs from the first onActivityResumed rather than Application.onCreate.
+     * runs from onActivityResumed rather than Application.onCreate. X also
+     * manages its own dynamic shortcuts and can replace the list, so instead of
+     * latching after one success this re-checks presence at most once a minute.
      */
     private void publishShortcut() {
-        if (shortcutPublished) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now - shortcutCheckedAt < SHORTCUT_RECHECK_MS) return;
+        shortcutCheckedAt = now;
         try {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return;
             ShortcutManager sm = app.getSystemService(ShortcutManager.class);
@@ -134,9 +140,8 @@ public final class TimeLimit implements Application.ActivityLifecycleCallbacks {
             if (!present) {
                 boolean ok = sm.addDynamicShortcuts(Collections.singletonList(si));
                 Log.i(TAG, "shortcut published=" + ok + " rateLimited=" + sm.isRateLimitingActive());
-                if (!ok) return;   // retry on a later resume
+                if (!ok) shortcutCheckedAt = -SHORTCUT_RECHECK_MS;   // retry on the next resume
             }
-            shortcutPublished = true;
         } catch (Throwable t) {
             Log.w(TAG, "shortcut: " + t);
         }
