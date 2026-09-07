@@ -77,7 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x gradlew
-          ./gradlew :extensions:twitter:testReleaseUnitTest --no-daemon --console=plain
+          ./gradlew :extensions:twitter:testDebugUnitTest --no-daemon --console=plain
 
       - name: Build the .mpp
         env:
