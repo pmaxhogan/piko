@@ -81,7 +81,7 @@ jobs:
                    --jq "[.[] | select(.headRepositoryOwner.login == \"${UP_OWNER}\" and .headRefName == \"${BRANCH}\")][0].number // empty" || true)"
           if [ -z "$NUM" ]; then
             NUM="$(gh pr create --repo "$GITHUB_REPOSITORY" \
-                     --base "$BRANCH" --head "${UP_OWNER}:${BRANCH}" \
+                     --base "$BRANCH" --head "${UP_OWNER}:${BRANCH}" --no-maintainer-edit \
                      --title "Sync upstream ${UPSTREAM}:${BRANCH} ($(date -u +%Y-%m-%d))" \
                      --body "Automated nightly sync from ${UPSTREAM}:${BRANCH}. Auto-merges only if cleanly mergeable with the Vantage-only commits; otherwise left open for manual resolution." \
                      | grep -oE '[0-9]+$')"
