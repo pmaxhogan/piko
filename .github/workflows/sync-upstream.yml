@@ -65,7 +65,7 @@ jobs:
       - name: Sync via PR (auto-merge if clean, else leave open)
         if: steps.check.outputs.behind != '0'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           UP_OWNER="${UPSTREAM%%/*}"
@@ -110,7 +110,14 @@ jobs:
           echo "mergeable=$STATE"
 
           if [ "$STATE" = "MERGEABLE" ]; then
-            gh pr merge "$NUM" --repo "$GITHUB_REPOSITORY" --merge
+            # GITHUB_TOKEN cannot merge a PR that touches .github/workflows/*
+            # (needs the `workflows` scope). Set a SYNC_TOKEN PAT secret to
+            # automate those; otherwise leave the PR open for a manual merge.
+            if ! gh pr merge "$NUM" --repo "$GITHUB_REPOSITORY" --merge; then
+              gh pr edit "$NUM" --repo "$GITHUB_REPOSITORY" --add-label needs-manual-merge 2>/dev/null || true
+              echo "::warning::Sync PR #$NUM could not be auto-merged (likely upstream changed workflow files; add a SYNC_TOKEN PAT secret with workflow scope) - left open."
+              exit 0
+            fi
             echo "Auto-merged sync PR #$NUM (clean). Dispatching build-mpp.yml ..."
             gh workflow run build-mpp.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
           elif [ "$STATE" = "CONFLICTING" ]; then
