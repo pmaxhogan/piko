@@ -86,6 +86,7 @@ jobs:
         run: ./gradlew :patches:buildAndroid --no-daemon --console=plain -Pversion="$VVER"
 
       - name: Publish .mpp release
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRERELEASE_INPUT: ${{ github.event.inputs.prerelease || 'auto' }}
@@ -100,6 +101,7 @@ jobs:
           PRE="$PRERELEASE_VAR"; [ "$PRERELEASE_INPUT" != "auto" ] && PRE="$PRERELEASE_INPUT"
           PREFLAG="--prerelease=false"; [ "$PRE" = "true" ] && PREFLAG="--prerelease"
           echo "built $ASSET (from $MPP), tag $TAG, prerelease=$PRE"
+          echo "MPP_PRE=$PRE" >> "$GITHUB_ENV"
           NOTES="piko patches $VVER built from crimera/piko $(git rev-parse --short HEAD) plus the Vantage-only patches (Hide verified users, Daily time limit). Consumed by pmaxhogan/vantage build-x.sh. Built $(date -u +%Y-%m-%dT%H:%M:%SZ)."
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "release $TAG exists - updating asset in place"
@@ -107,4 +109,34 @@ jobs:
             gh release edit "$TAG" --notes "$NOTES" $PREFLAG
           else
             gh release create "$TAG" "$ASSET" --title "$TAG" --notes "$NOTES" $PREFLAG
+          fi
+
+      # Tell pmaxhogan/vantage that a new bundle exists, so build-postbox.yml
+      # rebuilds right away instead of waiting for a push there
+      # (repository_dispatch, event type "piko-release"). GITHUB_TOKEN cannot
+      # dispatch to another repository, so this needs a fine-grained PAT in the
+      # VANTAGE_DISPATCH_TOKEN secret (repository: pmaxhogan/vantage only;
+      # Contents: read and write, Metadata: read). The step skips with a warning
+      # when the secret is absent and never fails the job: the .mpp is already
+      # published by then. Prereleases are not announced - vantage reads
+      # /releases/latest, which skips them.
+      - name: Notify vantage (repository_dispatch)
+        if: steps.publish.outcome == 'success'
+        env:
+          VANTAGE_DISPATCH_TOKEN: ${{ secrets.VANTAGE_DISPATCH_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "${VANTAGE_DISPATCH_TOKEN:-}" ]; then
+            echo "::warning::VANTAGE_DISPATCH_TOKEN is not set - skipping the vantage dispatch"
+            exit 0
+          fi
+          if [ "${MPP_PRE:-false}" = "true" ]; then
+            echo "prerelease - not notifying vantage"
+            exit 0
+          fi
+          if GH_TOKEN="$VANTAGE_DISPATCH_TOKEN" gh api repos/pmaxhogan/vantage/dispatches \
+               -f event_type=piko-release -f "client_payload[piko_version]=$VVER"; then
+            echo "dispatched piko-release ($VVER) to pmaxhogan/vantage"
+          else
+            echo "::warning::vantage dispatch failed (the release itself is published)"
           fi
