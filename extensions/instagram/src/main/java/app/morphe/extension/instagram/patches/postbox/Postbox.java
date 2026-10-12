@@ -102,10 +102,14 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
     // The feature entry points below never throw: each catches everything itself.
 
     private void onActivityCreating(Activity activity) {
+        // feature: Postbox link router
+        if (linkRouter) PostboxLinkRouter.route(activity);
     }
 
     @Override
     public void onActivityResumed(Activity activity) {
+        // feature: Postbox link router
+        if (linkRouter) PostboxLinkRouter.route(activity);
         // feature: Postbox shortcut lock
         if (shortcutLock) PostboxShortcuts.enforce(app, false);
     }
