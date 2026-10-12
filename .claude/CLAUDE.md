@@ -22,17 +22,18 @@ Only in two fork-owned directories, plus tests and one build block:
 - Patches: `patches/src/main/kotlin/app/crimera/patches/instagram/postbox/*.kt`
   (`PostboxCorePatch.kt` shared helpers + the internal init patch, and one file per
   patch: `PostboxSettingsLockPatch.kt`, `PostboxShortcutLockPatch.kt`,
-  `PostboxLinkRouterPatch.kt`, `PostboxNetworkBlockPatch.kt`).
+  `PostboxLinkRouterPatch.kt`, `PostboxNetworkBlockPatch.kt`, `PostboxProfileGridPatch.kt`).
 - Runtime: `extensions/instagram/src/main/java/app/morphe/extension/instagram/patches/postbox/*.java`
   (`Postbox` lifecycle hub, `PostboxBuild` switches, `PostboxNav`, `PostboxSettings`,
-  `PostboxShortcuts`, `PostboxLinks` + `PostboxLinkRouter`, `PostboxNet`).
+  `PostboxShortcuts`, `PostboxLinks` + `PostboxLinkRouter`, `PostboxNet`,
+  `PostboxProfile` + `PostboxProfileNet`).
 - Tests: `extensions/instagram/src/test/java/app/morphe/extension/instagram/patches/postbox/`.
 - `extensions/instagram/build.gradle.kts` carries a fork-only block adding
   `testImplementation("junit:junit:4.13.2")` (the Instagram extension had no tests
   upstream). Keep it a separate block at the end so upstream edits above do not collide.
 
-The four patches are `Postbox settings lock`, `Postbox shortcut lock`,
-`Postbox link router` and `Postbox network block`, all `default = false`, so a plain
+The five patches are `Postbox settings lock`, `Postbox shortcut lock`,
+`Postbox link router`, `Postbox network block` and `Postbox profile grid`, all `default = false`, so a plain
 piko user never gets them. Their header comments explain each one; read those before
 editing.
 
@@ -65,7 +66,7 @@ register piko uses).
 
 ### `PostboxBuild`: the constant getters
 
-`PostboxBuild.shortcutLock() / linkRouter() / networkBlock() / traceNetwork()` are the
+`PostboxBuild.shortcutLock() / linkRouter() / networkBlock() / profileGrid() / traceNetwork()` are the
 build switches. In source each is a bare `return false;`, which compiles to exactly
 `const/4 vX, 0x0; return vX`. A patch turns its feature on by rewriting that constant
 to `0x1` in the dex (`enableBuildFlag`). Rules:
@@ -179,6 +180,9 @@ the built extension, outside the patcher. Designed but unobserved:
 the fixed bar and startup guard, shortcut removal (what `dumpsys shortcut` shows), the
 link bounce for each deep-link form, whether the blocked endpoints really empty the feed
 and the post-chaining surfaces on 447.0.0.55.81, and whether piko's settings page is
-still reachable and pruned. Two items of the original design have no code in the fork
-yet: hiding the post/reel grid on other people's profiles, and hiding the feed-switcher
-dropdown on Home. Do not describe any of this as tested.
+still reachable and pruned. `Postbox profile grid` is the least certain of the five: its view id names
+(`PostboxProfile.java`, the arrays marked UNCONFIRMED) and request paths
+(`PostboxProfileNet.java`) come from public UI dumps and the long-standing private API,
+not from the APK. Its first run logs which names resolved (`adb logcat -s Postbox`, lines
+starting `profile grid:`); fix the arrays from that. One item of the original design has
+no code in the fork yet: hiding the feed-switcher dropdown on Home. Do not describe any of this as tested.

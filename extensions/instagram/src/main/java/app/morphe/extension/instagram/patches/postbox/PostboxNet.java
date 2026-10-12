@@ -26,6 +26,10 @@ import app.morphe.extension.instagram.constants.Constants;
  *   parser drops them.
  *
  * Nothing here reads a preference. The matchers are pure and unit tested (PostboxNetTest).
+ *
+ * "Postbox profile grid" adds its own matcher to the first seam: {@link PostboxProfileNet}, which
+ * blocks the requests that fill another account's posts and reels grid. It is a separate class
+ * because, unlike the list here, its answer depends on who is logged in.
  */
 public final class PostboxNet {
     /** Logcat tag of the request trace (every path), when the build has it on. */
@@ -108,6 +112,13 @@ public final class PostboxNet {
             String path = uri.getPath();
             if (path == null) return;
             block = isBlockedPath(path);
+            // feature: Postbox profile grid (D8). Same hook, so piko's Links.interceptUri keeps
+            // exactly one Postbox call in front of it.
+            if (!block && PostboxBuild.profileGrid() && PostboxProfileNet.isBlockedNow(path)) {
+                block = true;
+                // The kind only: the path names another account.
+                Log.i(Postbox.TAG, "profile grid: blocked " + PostboxProfileNet.Request.of(path).kind);
+            }
             if (PostboxBuild.traceNetwork()) {
                 // Path only: the host says nothing new and the query carries ids and tokens.
                 Log.i(TRACE_TAG, path);

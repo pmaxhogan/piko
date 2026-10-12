@@ -34,6 +34,14 @@ public final class PostboxBuild {
     }
 
     /**
+     * "Postbox profile grid": hide the posts and reels grid on other people's profiles and block
+     * the requests that fill it.
+     */
+    public static boolean profileGrid() {
+        return false;
+    }
+
+    /**
      * "Postbox network block", option {@code traceNetwork}: log every request path to logcat.
      * For endpoint discovery on a verification build ONLY. The release build script refuses any
      * enabled option whose key contains "trace", and nothing but the patch can set this.

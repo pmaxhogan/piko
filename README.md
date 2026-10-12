@@ -249,11 +249,12 @@ This fork ([pmaxhogan/piko](https://github.com/pmaxhogan/piko)) adds patches tha
 * **Hide verified users**: hides tweets and replies from accounts with a verified check.
 * **Daily time limit**: a mandatory daily time limit with a lock screen.
 
-**Instagram (Postbox only)**, for the locked-down Postbox build made by [pmaxhogan/vantage](https://github.com/pmaxhogan/vantage). All four are off by default and not useful in a normal piko build.
+**Instagram (Postbox only)**, for the locked-down Postbox build made by [pmaxhogan/vantage](https://github.com/pmaxhogan/vantage). All five are off by default and not useful in a normal piko build.
 * **Postbox settings lock**: fixes the bottom bar to Home, Messages and Profile, forces the blocking prefs on, and sends Reels and Search startup intents to Messages.
 * **Postbox shortcut lock**: removes static, dynamic and pinned launcher shortcuts.
 * **Postbox link router**: sends Home, Explore, Reels tab, search, hashtag and location links to Messages.
 * **Postbox network block**: blocks the requests behind the feed, Explore, Reels and "more like this". The `traceNetwork` option (off) is for verification builds only.
+* **Postbox profile grid**: hides the posts and reels grid on other people's profiles and blocks the requests that fill it; your own profile keeps its grid.
 
 ## ✨ Stargazers over time
 

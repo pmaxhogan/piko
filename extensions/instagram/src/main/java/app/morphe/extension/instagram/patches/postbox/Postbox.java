@@ -30,11 +30,13 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
     private final Application app;
     private final boolean shortcutLock;
     private final boolean linkRouter;
+    private final boolean profileGrid;
 
-    private Postbox(Application app, boolean shortcutLock, boolean linkRouter) {
+    private Postbox(Application app, boolean shortcutLock, boolean linkRouter, boolean profileGrid) {
         this.app = app;
         this.shortcutLock = shortcutLock;
         this.linkRouter = linkRouter;
+        this.profileGrid = profileGrid;
     }
 
     /** Patch entry point. Safe to call more than once and from any process of the app. */
@@ -48,17 +50,19 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
         try {
             boolean shortcutLock = PostboxBuild.shortcutLock();
             boolean linkRouter = PostboxBuild.linkRouter();
-            if (!shortcutLock && !linkRouter) return;
+            boolean profileGrid = PostboxBuild.profileGrid();
+            if (!shortcutLock && !linkRouter && !profileGrid) return;
 
             Application app = applicationOf(context);
             if (app == null) {
                 Log.e(TAG, "init: no Application behind " + context + ", Postbox lifecycle features are OFF");
                 return;
             }
-            app.registerActivityLifecycleCallbacks(new Postbox(app, shortcutLock, linkRouter));
+            app.registerActivityLifecycleCallbacks(new Postbox(app, shortcutLock, linkRouter, profileGrid));
             // feature: Postbox shortcut lock
             if (shortcutLock) PostboxShortcuts.enforce(app, true);
             Log.i(TAG, "ready: shortcutLock=" + shortcutLock + " linkRouter=" + linkRouter
+                    + " profileGrid=" + profileGrid
                     + " networkBlock=" + PostboxBuild.networkBlock()
                     + " traceNetwork=" + PostboxBuild.traceNetwork());
         } catch (Throwable t) {
@@ -104,6 +108,8 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
     private void onActivityCreating(Activity activity) {
         // feature: Postbox link router
         if (linkRouter) PostboxLinkRouter.route(activity);
+        // feature: Postbox profile grid
+        if (profileGrid) PostboxProfile.onActivityCreating(activity);
     }
 
     @Override
