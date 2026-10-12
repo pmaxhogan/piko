@@ -13,3 +13,8 @@ dependencies {
     compileOnly(libs.annotation)
     compileOnly(libs.appcompat)
 }
+
+// JUnit for the pure Postbox logic (extensions/.../patches/postbox). Vantage fork only.
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
