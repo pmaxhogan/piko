@@ -3,9 +3,11 @@ package app.morphe.extension.instagram.patches.postbox;
 import android.content.Intent;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -14,7 +16,9 @@ import java.util.Set;
  * Nothing here reads a preference. The "Postbox settings lock" patch bakes
  * {@link #NAV_CONFIG} into {@code Pref.navigationTabs()} and calls
  * {@link #sanitizeStartupIntent(Intent)} first thing in piko's startup seam, so no stored
- * setting, backup restore or Focus Lock state can change either.
+ * setting, backup restore or Focus Lock state can change either. It also runs every tab list
+ * piko hands back to Instagram through {@link #filterNavigationTabs(List)}, so the bar stays
+ * locked on the paths where piko itself gives up and returns Instagram's own list.
  */
 @SuppressWarnings("unused")
 public final class PostboxNav {
@@ -49,7 +53,69 @@ public final class PostboxNav {
     private static final Set<String> ALLOWED_STARTUP_TABS = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList("FEED", "DIRECT", "PROFILE", "NEWS", "SHARE", "CREATION")));
 
+    /**
+     * Tabs the bottom bar may contain, as Instagram enum names: Home, Messages, Profile. The
+     * same three {@link #NAV_CONFIG} makes visible; PostboxNavFilterTest ties the two together.
+     */
+    private static final Set<String> ALLOWED_BAR_TABS = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList("FEED", "DIRECT", "PROFILE")));
+
     private PostboxNav() {
+    }
+
+    /**
+     * Pure: the entries of a tab list that the bar may show, in their original order. An entry
+     * is kept only if it is an enum constant whose name is on the allowlist; anything else,
+     * including null and values that are not enums at all, is dropped.
+     */
+    static List<Object> keepAllowedTabs(List<Object> tabs) {
+        List<Object> kept = new ArrayList<>(tabs.size());
+        for (Object tab : tabs) {
+            if (tab instanceof Enum<?> && ALLOWED_BAR_TABS.contains(((Enum<?>) tab).name())) {
+                kept.add(tab);
+            }
+        }
+        return kept;
+    }
+
+    /**
+     * Pure: the list the bar gets, given the list piko produced and what survived the allowlist.
+     * Nothing dropped: piko's own list, untouched. Something dropped: the survivors. Everything
+     * dropped: piko's list again, because an empty bar would leave the app with no way to
+     * navigate at all, which is worse than a bar with a tab too many.
+     */
+    static List<Object> chooseBarTabs(List<Object> tabs, List<Object> kept) {
+        return kept.isEmpty() || kept.size() == tabs.size() ? tabs : kept;
+    }
+
+    /**
+     * Fail-closed filter on the result of piko's {@code NavigationBarPatch.transformNavigationTabs}.
+     * The patch routes every {@code return} of that method through here.
+     *
+     * Piko fails OPEN by design: on any internal exception, or on a native list it cannot work
+     * with, it returns Instagram's own tabs, Reels and Search included. This drops every entry
+     * that is not Home, Messages or Profile from whatever comes back. On piko's normal path the
+     * result already is exactly those three, in {@link #NAV_CONFIG} order, and passes through
+     * as the same list object; the filter never reorders and never adds.
+     *
+     * Runs inside Instagram's tab setup, so it must never throw.
+     */
+    public static List<Object> filterNavigationTabs(List<Object> tabs) {
+        List<Object> chosen = tabs;
+        try {
+            if (tabs == null || tabs.isEmpty()) return tabs;
+            List<Object> kept = keepAllowedTabs(tabs);
+            chosen = chooseBarTabs(tabs, kept);
+            if (kept.isEmpty()) {
+                Log.e("Postbox", "nav filter: none of " + tabs + " is a Postbox tab. "
+                        + "The bar is left UNFILTERED rather than empty; Instagram renamed its tabs");
+            } else if (chosen != tabs) {
+                Log.w("Postbox", "nav filter: " + tabs + " -> " + chosen);
+            }
+        } catch (Throwable ignored) {
+            // Whatever was decided before the failure stands.
+        }
+        return chosen;
     }
 
     /**

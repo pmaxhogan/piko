@@ -19,6 +19,7 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.util.proxy.mutableTypes.MutableClass
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
+import app.morphe.util.addInstructionsAtControlFlowLabel
 import app.morphe.util.p0Register
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
@@ -29,6 +30,7 @@ import com.android.tools.smali.dexlib2.builder.instruction.BuilderInstruction21c
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -42,6 +44,8 @@ import com.android.tools.smali.dexlib2.immutable.reference.ImmutableStringRefere
  * no Reels, no Explore and no way to switch any of that back on. Piko already has the blocking
  * features, but each one is a user preference. This patch takes the preference away: it edits
  * piko's own extension dex at patch time so the getters behind those features return constants.
+ * It also closes the one place where piko's navigation code deliberately gives up and hands
+ * Instagram's own tab list back (see hookNavigationTabsFilter).
  *
  * Everything it touches is extension code (found by class + method name), never an obfuscated
  * Instagram method, so it has no fingerprints of its own. Every lookup throws a PatchException
@@ -49,6 +53,7 @@ import com.android.tools.smali.dexlib2.immutable.reference.ImmutableStringRefere
  */
 
 private const val STRING = "Ljava/lang/String;"
+private const val LIST = "Ljava/util/List;"
 private const val INTENT = "Landroid/content/Intent;"
 private const val PREFERENCE_FRAGMENT = "Landroid/preference/PreferenceFragment;"
 private const val PREFERENCE_SCREEN = "Landroid/preference/PreferenceScreen;"
@@ -58,10 +63,12 @@ private const val POSTBOX_NAV = "$POSTBOX_PACKAGE/PostboxNav;"
 private const val POSTBOX_SETTINGS = "$POSTBOX_PACKAGE/PostboxSettings;"
 private const val NAV_CONFIG_FIELD = "NAV_CONFIG"
 private const val SANITIZE_STARTUP_INTENT = "sanitizeStartupIntent"
+private const val FILTER_NAVIGATION_TABS = "filterNavigationTabs"
 private const val SET_PREFERENCE_SCREEN = "setPreferenceScreen"
 
 private const val NAVIGATION_EXTENSION = "$PATCHES_DESCRIPTOR/navigation/NavigationBarPatch;"
 private const val PREFLIGHT_STARTUP = "preflightStartup"
+private const val TRANSFORM_NAVIGATION_TABS = "transformNavigationTabs"
 private const val SETTINGS_FRAGMENT = "$ACTIVITY_SETTINGS_CLASS/SettingsActivity\$SettingsFragment;"
 
 /**
@@ -228,6 +235,82 @@ internal fun hookStartupSanitizer(navigation: MutableClass) {
 }
 
 /**
+ * Fail-closed bottom bar: every `return` of piko's
+ * `NavigationBarPatch.transformNavigationTabs(List, List)` hands its list to
+ * `PostboxNav.filterNavigationTabs` first, which drops whatever is not Home, Messages or Profile.
+ *
+ * Piko's method fails OPEN by design: when it throws internally, or gets a native list it will
+ * not touch, it returns Instagram's own tabs, Reels and Search included. The forced config
+ * above only governs the path where piko succeeds; this covers the ones where it does not,
+ * including its `catch (Throwable)` handler, which is just another `return-object`.
+ *
+ * The call goes in with addInstructionsAtControlFlowLabel, not a plain insert: a branch (or a
+ * catch handler) that jumps straight to a `return-object` would land AFTER code inserted in
+ * front of it and skip the filter. That helper moves the instruction's labels onto the new
+ * code. Afterwards every return is checked to be fed by the filter with nothing jumping in
+ * between.
+ */
+internal fun hookNavigationTabsFilter(navigation: MutableClass) {
+    val candidates = navigation.methods.filter { it.name == TRANSFORM_NAVIGATION_TABS }
+    val transform = candidates.singleOrNull()
+        ?: throw PatchException(
+            "Postbox: expected exactly one ${navigation.type}->$TRANSFORM_NAVIGATION_TABS, found ${candidates.size}. " +
+                "The fail-closed tab filter has nowhere to hook",
+        )
+    if (!transform.isStatic() || transform.parameterTypeNames() != listOf(LIST, LIST) ||
+        transform.returnType != LIST || transform.implementation == null
+    ) {
+        throw PatchException("Postbox: ${navigation.type}->$TRANSFORM_NAVIGATION_TABS has an unexpected signature")
+    }
+
+    val filterCall = "$POSTBOX_NAV->$FILTER_NAVIGATION_TABS($LIST)$LIST"
+    val returns = transform.instructions.withIndex()
+        .filter { it.value.opcode == Opcode.RETURN_OBJECT }
+        .map { it.index }
+    if (returns.isEmpty()) {
+        throw PatchException("Postbox: ${navigation.type}->$TRANSFORM_NAVIGATION_TABS never returns a list")
+    }
+    // Last return first, so the indexes of the earlier ones stay valid.
+    returns.asReversed().forEach { index ->
+        val register = (transform.instructions[index] as OneRegisterInstruction).registerA
+        // The range form takes any register number, and so does move-result-object.
+        transform.addInstructionsAtControlFlowLabel(
+            index,
+            """
+                invoke-static/range { v$register .. v$register }, $filterCall
+                move-result-object v$register
+            """.trimIndent(),
+        )
+    }
+
+    val patched = transform.instructions
+    val patchedReturns = patched.withIndex().filter { it.value.opcode == Opcode.RETURN_OBJECT }
+    if (patchedReturns.size != returns.size) {
+        throw PatchException("Postbox: the tab filter changed the number of returns in $TRANSFORM_NAVIGATION_TABS")
+    }
+    patchedReturns.forEach { (index, instruction) ->
+        val register = (instruction as OneRegisterInstruction).registerA
+        val moveResult = patched.getOrNull(index - 1)
+        val call = patched.getOrNull(index - 2)
+        val reference = (call as? ReferenceInstruction)?.reference as? MethodReference
+        val filtered = moveResult?.opcode == Opcode.MOVE_RESULT_OBJECT &&
+            (moveResult as OneRegisterInstruction).registerA == register &&
+            call?.opcode == Opcode.INVOKE_STATIC_RANGE &&
+            (call as RegisterRangeInstruction).startRegister == register &&
+            reference?.definingClass == POSTBOX_NAV && reference.name == FILTER_NAVIGATION_TABS
+        // A label on the return or on the move-result means something can still jump past the call.
+        val reachableOnlyThroughFilter = instruction.location.labels.isEmpty() &&
+            moveResult?.location?.labels?.isEmpty() == true
+        if (!filtered || !reachableOnlyThroughFilter) {
+            throw PatchException(
+                "Postbox: a return of ${navigation.type}->$TRANSFORM_NAVIGATION_TABS (instruction $index) " +
+                    "is not behind the tab filter",
+            )
+        }
+    }
+}
+
+/**
  * Settings hygiene: route the single `setPreferenceScreen(screen)` call of piko's settings
  * fragment through PostboxSettings, which strips the rows for the forced prefs and the
  * navigation editor from the finished screen. The instruction is replaced one-for-one (same
@@ -281,7 +364,8 @@ val postboxSettingsLockPatch =
         description = "Postbox builds only. Hardcodes the bottom bar to Home, Messages and Profile " +
             "(opening on Messages) and forces Explore, Reels scrolling, suggested content, suggested " +
             "accounts and swipe-to-create off, so no setting, backup restore or Focus Lock state can " +
-            "re-enable them. Startup intents that name the Reels or Search tab land on Messages instead.",
+            "re-enable them. Startup intents that name the Reels or Search tab land on Messages instead, " +
+            "and the bar is filtered down to those three tabs even where piko falls back to Instagram's own list.",
         default = false,
     ) {
         compatibleWith(COMPATIBILITY_INSTAGRAM)
@@ -308,6 +392,7 @@ val postboxSettingsLockPatch =
             val postboxSettings = classDefByOrNull(POSTBOX_SETTINGS)
                 ?: throw PatchException("Postbox: extension class $POSTBOX_SETTINGS not found")
             postboxNav.requireStaticMethod(SANITIZE_STARTUP_INTENT, listOf(INTENT), "V")
+            postboxNav.requireStaticMethod(FILTER_NAVIGATION_TABS, listOf(LIST), LIST)
             postboxSettings.requireStaticMethod(
                 SET_PREFERENCE_SCREEN,
                 listOf(PREFERENCE_FRAGMENT, PREFERENCE_SCREEN),
@@ -322,6 +407,7 @@ val postboxSettingsLockPatch =
 
             lockPrefGetters(pref, navConfig)
             hookStartupSanitizer(navigation)
+            hookNavigationTabsFilter(navigation)
             hookSettingsPrune(settingsFragment)
         }
     }
