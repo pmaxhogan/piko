@@ -4,6 +4,10 @@
 # nightly sync-upstream PR - if upstream edits it, resolve by keeping this
 # version. The npm entry is dropped on purpose: package.json only carries
 # upstream's semantic-release tooling, which this fork's CI never runs.
+#
+# Version updates are OFF by default on a fork: this file does nothing until
+# "Dependabot version updates" is enabled in Settings > Advanced Security
+# (enabled on 2026-10-12).
 version: 2
 updates:
   - package-ecosystem: github-actions
