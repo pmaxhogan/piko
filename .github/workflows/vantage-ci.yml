@@ -1,0 +1,45 @@
+name: Vantage CI
+
+# Fork-owned PR gate that the Dependabot auto-merge workflow listens to.
+# Upstream's build_pull_request.yml ("Test pull request") is not used for this
+# because (a) its name and triggers are upstream-owned and could change in a
+# sync, silently stranding auto-merge, and (b) it runs `clean buildAndroid`
+# without the extension unit tests that guard the Vantage-only patches. This
+# mirrors the test + build steps of build-mpp.yml minus the release publish.
+#
+# Needs no secrets: Dependabot PRs get no Actions secrets, only a read-only
+# GITHUB_TOKEN, which is enough to read the Morphe GitHub Packages registry.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Run extension unit tests
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :extensions:twitter:testDebugUnitTest --no-daemon --console=plain
+
+      - name: Build the .mpp
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :patches:buildAndroid --no-daemon --console=plain

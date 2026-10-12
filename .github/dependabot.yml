@@ -1,22 +1,23 @@
+# Vantage fork override of upstream's file (upstream targets `dev` monthly).
+# This fork only has `main`-based work, so every ecosystem targets `main` and
+# runs weekly. NOTE: this file is an accepted merge-conflict source for the
+# nightly sync-upstream PR - if upstream edits it, resolve by keeping this
+# version. The npm entry is dropped on purpose: package.json only carries
+# upstream's semantic-release tooling, which this fork's CI never runs.
 version: 2
 updates:
   - package-ecosystem: github-actions
     labels: []
     directory: /
-    target-branch: dev
+    target-branch: main
     schedule:
-      interval: monthly
-
-  - package-ecosystem: npm
-    labels: []
-    directory: /
-    target-branch: dev
-    schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
 
   - package-ecosystem: gradle
     labels: []
     directory: /
-    target-branch: dev
+    target-branch: main
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
