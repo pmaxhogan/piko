@@ -226,27 +226,49 @@ which references `NavigationBarPatch.Tab`.
   with the workflow token does not trigger push workflows, so a bot merge publishes no
   release by itself.
 
-## What is NOT verified
+## What was checked on a device, and what was not
 
-As of 2026-10-11 the Postbox patches have not been applied to a real Instagram APK and
-nothing has been run on a device. The unit tests cover the pure logic and the Gradle
-build only compiles the patches; the dex edits were checked in a scratch harness against
-the built extension, outside the patcher. Designed but unobserved:
-the fixed bar and startup guard, shortcut removal (what `dumpsys shortcut` shows), the
-link bounce for each deep-link form, whether the blocked endpoints really empty the feed
-and the post-chaining surfaces on 447.0.0.55.81, and whether piko's settings page is
-still reachable and pruned. `Postbox profile grid` is the least certain of the six: its view id names
-(`PostboxProfile.java`, the arrays marked UNCONFIRMED) and request paths
-(`PostboxProfileNet.java`) come from public UI dumps and the long-standing private API,
-not from the APK. Its first run logs which names resolved (`adb logcat -s Postbox`, lines
-starting `profile grid:`); fix the arrays from that. Do not describe any of this as tested.
+The 3.10.0-vantage.3 bundle was applied to Instagram 447.0.0.55.81 by the vantage build
+and the release APK was driven by hand on a Pixel 6 (Android 16), logged in, on
+2026-10-12. Observed, each with a logcat line or a `dumpsys` result (the list a user
+reads is in the vantage README, "Checked on a device"):
 
-Added 2026-10-12 after a first look at vantage.2 on a phone, and NOT yet run on one:
-the shortcut publish redirect and the background clearing passes, the extra network paths
-(search results, audio, hashtag, place), the reel-link rewrite of the link router, and all
-of `Postbox surface lock`. The patcher
-applies all sixteen patches of the Postbox set to 447.0.0.55.81 and rewrites the five
-publish calls, and the view id names of the surface lock come from uiautomator dumps of
-the running app, but whether the bounce, the title lock and the placeholder hide behave
-is unobserved. The placeholder is a row of the Home list made `INVISIBLE`; if Instagram
-shows it again without a layout pass it stays visible until the next one.
+- the fixed bar (Home, Message, Profile), the cold start on Messages and the startup-tab
+  guard for the Reels, Search and Home extras;
+- `dumpsys shortcut`: no dynamic shortcut in the foreground or 1, 3, 10 and 30 seconds
+  after HOME, with `shortcuts: dropped N of N at publish` for every publish;
+- the link bounce for `/explore/`, `/reels/`, `/`, `/explore/tags/<tag>/`,
+  `instagram://explore` and `instagram://reels`; `/p/`, `/reel/`, `/reels/` and profile
+  links opening as single items (`reel link -> post viewer, in place
+  (UrlHandlerLauncherActivity)`, cold and with the app running);
+- the network block: Home empty under the tray, Following and Favorites empty, a reel or
+  post opened from a chat with nothing after it (`Postbox: blocked` on
+  `feed/timeline/` and `clips/discover/stream/`);
+- `Postbox profile grid`: `bind verdict=SELF` leaves the own grid, `verdict=OTHER`
+  hides `profile_tabs_container` and `profile_viewpager`; every id name resolved;
+- `Postbox surface lock`: every id name resolved; `surface: bounce serp|audio|place`
+  for a hashtag, "View song details" and a place's "See more"; no bounce on the friend
+  map or the inbox search; `home title locked` and `home placeholder hidden`, re-applied
+  after leaving and re-entering Home;
+- piko's settings page: reachable from the own profile, the locked rows gone.
+
+NOT observed, do not describe as tested:
+
+- push notifications on the renamed package (permission was not granted, no message was
+  sent to the phone);
+- posting a story, sending a message, logout and login with 2FA; stories on vantage.3
+  (they played on vantage.2);
+- the background clearing passes of the shortcut lock ever being needed (the redirect
+  dropped every publish, so `shortcuts: removed N dynamic` never appeared after the
+  first launch);
+- the router's backstop path (`sent again`), `m.instagram.com` and `instagr.am` reel
+  links, `/share/reel/<id>` and `instagram://reel?...` (not rewritten: no shortcode);
+- pages nobody tapped into: an effect or template page (probably `clips_pivot_page_fragment`
+  too), a keyword search opened from the inbox search, a hashtag opened from inside the
+  main activity rather than a modal one;
+- the network paths added for search results, audio, hashtag and place pages: the
+  surface lock bounces those pages before they load, so the paths themselves were not
+  seen failing. They come from `strings` on the stock dex, not from a trace.
+
+The placeholder on Home is a row of the Home list made `INVISIBLE`; if Instagram shows
+it again without a layout pass it stays visible until the next one.
