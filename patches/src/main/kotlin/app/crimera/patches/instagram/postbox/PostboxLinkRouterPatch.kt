@@ -13,6 +13,11 @@ import app.morphe.patcher.patch.bytecodePatch
  * other apps, notification taps, shortcuts and adb alike, without a fingerprint for any of
  * Instagram's link-handling activities.
  *
+ * A link to a single reel is a special case. Instagram's own handler for it opens the Reels
+ * viewer, which loads even its first item through the Reels feed endpoint that the network block
+ * fails, so it shows an error. The router hands such a link on in its single-post form
+ * (/reel/<code> -> /p/<code>), which the post viewer plays with nothing below it.
+ *
  * This patch only switches the feature on. It does not depend on the settings lock: the router
  * reuses PostboxNav's startup-tab allowlist, which is plain extension code.
  */
@@ -23,7 +28,8 @@ val postboxLinkRouterPatch =
         name = "Postbox link router",
         description = "Postbox builds only. Links and intents that would open Home, Explore, the Reels " +
             "tab, search, hashtag or location pages land on Messages instead. Links to a single post, " +
-            "reel, story, profile or chat, and the login and account pages, open as usual.",
+            "story, profile or chat, and the login and account pages, open as usual; a link to a " +
+            "single reel opens in the single-post viewer.",
         default = false,
     ) {
         compatibleWith(COMPATIBILITY_INSTAGRAM)

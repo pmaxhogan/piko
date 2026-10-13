@@ -2,7 +2,9 @@ package app.morphe.extension.instagram.patches.postbox;
 
 import android.app.Activity;
 import android.app.Application;
+import android.content.ComponentCallbacks2;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,7 +21,7 @@ import android.util.Log;
  * taps and shortcuts all create an Activity. Everything in this class runs on Instagram's main
  * thread inside Instagram's own lifecycle, so nothing here may throw.
  */
-public final class Postbox implements Application.ActivityLifecycleCallbacks {
+public final class Postbox implements Application.ActivityLifecycleCallbacks, ComponentCallbacks2 {
     static final String TAG = "Postbox";
 
     /** "Has not happened yet", as a value of the elapsed-realtime clock. */
@@ -31,12 +33,18 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
     private final boolean shortcutLock;
     private final boolean linkRouter;
     private final boolean profileGrid;
+    private final boolean surfaceLock;
 
-    private Postbox(Application app, boolean shortcutLock, boolean linkRouter, boolean profileGrid) {
+    /** Activities of this process between onStart and onStop. Zero = the UI is in the background. */
+    private int started;
+
+    private Postbox(Application app, boolean shortcutLock, boolean linkRouter, boolean profileGrid,
+                    boolean surfaceLock) {
         this.app = app;
         this.shortcutLock = shortcutLock;
         this.linkRouter = linkRouter;
         this.profileGrid = profileGrid;
+        this.surfaceLock = surfaceLock;
     }
 
     /** Patch entry point. Safe to call more than once and from any process of the app. */
@@ -51,18 +59,24 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
             boolean shortcutLock = PostboxBuild.shortcutLock();
             boolean linkRouter = PostboxBuild.linkRouter();
             boolean profileGrid = PostboxBuild.profileGrid();
-            if (!shortcutLock && !linkRouter && !profileGrid) return;
+            boolean surfaceLock = PostboxBuild.surfaceLock();
+            if (!shortcutLock && !linkRouter && !profileGrid && !surfaceLock) return;
 
             Application app = applicationOf(context);
             if (app == null) {
                 Log.e(TAG, "init: no Application behind " + context + ", Postbox lifecycle features are OFF");
                 return;
             }
-            app.registerActivityLifecycleCallbacks(new Postbox(app, shortcutLock, linkRouter, profileGrid));
+            Postbox postbox = new Postbox(app, shortcutLock, linkRouter, profileGrid, surfaceLock);
+            app.registerActivityLifecycleCallbacks(postbox);
             // feature: Postbox shortcut lock
-            if (shortcutLock) PostboxShortcuts.enforce(app, true);
+            if (shortcutLock) {
+                // For onTrimMemory, the system's own "your UI is hidden now".
+                app.registerComponentCallbacks(postbox);
+                PostboxShortcuts.enforce(app, true);
+            }
             Log.i(TAG, "ready: shortcutLock=" + shortcutLock + " linkRouter=" + linkRouter
-                    + " profileGrid=" + profileGrid
+                    + " profileGrid=" + profileGrid + " surfaceLock=" + surfaceLock
                     + " networkBlock=" + PostboxBuild.networkBlock()
                     + " traceNetwork=" + PostboxBuild.traceNetwork());
         } catch (Throwable t) {
@@ -122,6 +136,9 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
 
     @Override
     public void onActivityStarted(Activity activity) {
+        started++;
+        // feature: Postbox surface lock. Not earlier: the window's views exist from here on.
+        if (surfaceLock) PostboxSurface.watch(activity);
     }
 
     @Override
@@ -130,6 +147,12 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
 
     @Override
     public void onActivityStopped(Activity activity) {
+        if (started > 0) started--;
+        // feature: Postbox shortcut lock. The last activity stopped: the app left the screen,
+        // which is when Instagram publishes its shortcuts. A rotation is not that.
+        if (shortcutLock && started == 0 && !activity.isChangingConfigurations()) {
+            PostboxShortcuts.onBackground(app);
+        }
     }
 
     @Override
@@ -138,5 +161,23 @@ public final class Postbox implements Application.ActivityLifecycleCallbacks {
 
     @Override
     public void onActivityDestroyed(Activity activity) {
+        // feature: Postbox surface lock
+        if (surfaceLock) PostboxSurface.unwatch(activity);
+    }
+
+    // ---- ComponentCallbacks2 (registered for the shortcut lock only) ---------------------------
+
+    @Override
+    public void onTrimMemory(int level) {
+        // feature: Postbox shortcut lock. The second way to learn that the UI is hidden.
+        if (shortcutLock && level == TRIM_MEMORY_UI_HIDDEN) PostboxShortcuts.onBackground(app);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+    }
+
+    @Override
+    public void onLowMemory() {
     }
 }

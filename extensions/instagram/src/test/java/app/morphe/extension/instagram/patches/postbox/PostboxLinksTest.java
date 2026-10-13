@@ -3,6 +3,7 @@ package app.morphe.extension.instagram.patches.postbox;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 
 import java.net.URI;
 
@@ -47,6 +48,154 @@ public class PostboxLinksTest {
                 "https://www.instagram.com/p/DAbCdEfGhIj/?igsh=MXZ4dGZtY2ZmZ2Zo",
                 "https://www.instagram.com/reel/DAbCdEfGhIj/?igsh=MXZ4dGZtY2ZmZ2Zo&utm_source=qr",
                 "https://www.instagram.com/p/DAbCdEfGhIj/?img_index=2");
+    }
+
+    // ---- single reels open through the post viewer (L2) -------------------------------------
+
+    private static final String AS_POST = "https://www.instagram.com/p/DAbCdEfGhIj/";
+
+    private static void opensAsPost(String... links) {
+        for (String link : links) assertEquals("for " + link, AS_POST, PostboxLinks.reelAsPostLink(link));
+    }
+
+    private static void notRewritten(String... links) {
+        for (String link : links) assertNull("for " + link, PostboxLinks.reelAsPostLink(link));
+    }
+
+    /** /reel/<code> and /reels/<code>, with and without the trailing slash, on every app-link host. */
+    @Test
+    public void singleReelLinksBecomePostLinks() {
+        opensAsPost(
+                "https://www.instagram.com/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/reel/DAbCdEfGhIj",
+                "https://www.instagram.com/reels/DAbCdEfGhIj/",
+                "https://www.instagram.com/reels/DAbCdEfGhIj",
+                "https://instagram.com/reel/DAbCdEfGhIj/",
+                "http://www.instagram.com/reel/DAbCdEfGhIj/",
+                "https://m.instagram.com/reel/DAbCdEfGhIj/",
+                "https://instagr.am/reel/DAbCdEfGhIj/",
+                "HTTPS://WWW.INSTAGRAM.COM/Reel/DAbCdEfGhIj/",
+                // with a username in front, as profile pages link them
+                "https://www.instagram.com/some.user_1/reel/DAbCdEfGhIj/");
+    }
+
+    /** Only the shortcode is carried over: no share token, no fragment, nothing after the code. */
+    @Test
+    public void queryFragmentAndTrailingSegmentsAreDropped() {
+        opensAsPost(
+                "https://www.instagram.com/reel/DAbCdEfGhIj/?igsh=MXZ4dGZtY2ZmZ2Zo",
+                "https://www.instagram.com/reel/DAbCdEfGhIj/?igsh=MXZ4dGZtY2ZmZ2Zo&utm_source=qr",
+                "https://www.instagram.com/reels/DAbCdEfGhIj/?next=/explore/",
+                "https://www.instagram.com/reel/DAbCdEfGhIj?igsh=x#frag",
+                "https://www.instagram.com/reel/DAbCdEfGhIj/embed/",
+                "https://www.instagram.com/some.user_1/reel/DAbCdEfGhIj/?igsh=x");
+        assertEquals("https://www.instagram.com/p/B-_x9aQhK3z/",
+                PostboxLinks.reelAsPostLink("https://www.instagram.com/reel/B-_x9aQhK3z/?igsh=SECRET"));
+        assertEquals(AS_POST, PostboxLinks.reelAsPostLink("https", "www.instagram.com", "/reel/DAbCdEfGhIj/"));
+    }
+
+    /** The Reels tab and its listings are not a reel: they are left to the table, which bounces them. */
+    @Test
+    public void bareReelsAndListingsAreNotRewritten() {
+        String[] listings = {
+                "https://www.instagram.com/reels/",
+                "https://www.instagram.com/reels",
+                "https://www.instagram.com/reel/",
+                "https://www.instagram.com/reels/audio/1234567890/",
+                "https://www.instagram.com/reels/trending/",
+                // no upper-case letter or digit: read as a page name, like the table does
+                "https://www.instagram.com/reels/somepage/",
+                "https://www.instagram.com/explore/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/some.user_1/reels/",
+                "https://www.instagram.com/some.user_1/reel/",
+        };
+        notRewritten(listings);
+        bounce(listings);
+    }
+
+    /** A post link passes straight through, which is also why a rewrite cannot be rewritten again. */
+    @Test
+    public void postLinksAndOtherItemsAreNotRewritten() {
+        notRewritten(
+                "https://www.instagram.com/p/DAbCdEfGhIj/",
+                "https://www.instagram.com/p/DAbCdEfGhIj/?igsh=x",
+                "https://www.instagram.com/some.user_1/p/DAbCdEfGhIj/",
+                // the post whose shortcode happens to be "reel"
+                "https://www.instagram.com/p/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/tv/DAbCdEfGhIj/",
+                "https://www.instagram.com/some.user_1/",
+                "https://www.instagram.com/stories/some.user_1/3141592653589793238/",
+                "https://www.instagram.com/direct/t/340282366841710300949128137443944319108/",
+                // a share id is not a shortcode
+                "https://www.instagram.com/share/reel/BAbCdEfGhI/",
+                "https://www.instagram.com/share/BAbCdEfGhI/",
+                // first segments with a meaning of their own are never a username
+                "https://www.instagram.com/s/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/stories/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/direct/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/accounts/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/login/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/about/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/_u/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/_n/reel/DAbCdEfGhIj/");
+    }
+
+    /** Only http(s) links on the app-link hosts. The app's own scheme carries media ids, not shortcodes. */
+    @Test
+    public void otherSchemesAndHostsAreNotRewritten() {
+        notRewritten(
+                "instagram://reel?id=3141592653589793238",
+                "instagram://reels_share?shortcode=DAbCdEfGhIj",
+                "instagram://media?id=3141592653589793238",
+                "ig://reel/DAbCdEfGhIj",
+                "https://help.instagram.com/reel/DAbCdEfGhIj/",
+                "https://l.instagram.com/reel/DAbCdEfGhIj/",
+                "https://ig.me/reel/DAbCdEfGhIj/",
+                "https://example.com/reel/DAbCdEfGhIj/",
+                "https:///reel/DAbCdEfGhIj/",
+                "content://media/reel/DAbCdEfGhIj",
+                "/reel/DAbCdEfGhIj/",
+                "");
+        assertNull(PostboxLinks.reelAsPostLink(null));
+        assertNull(PostboxLinks.reelAsPostLink(null, null, null));
+        assertNull(PostboxLinks.reelAsPostLink("https", "www.instagram.com", null));
+    }
+
+    /** Path tricks do not turn something else into a post link. */
+    @Test
+    public void malformedReelPathsAreNotRewritten() {
+        notRewritten(
+                "https://www.instagram.com/reel/../explore/",
+                "https://www.instagram.com/reel/DAb%20CdE/",
+                "https://www.instagram.com/reel/DAb.CdE/",
+                "https://www.instagram.com/reel/%2e%2e/",
+                "https://www.instagram.com/not a user/reel/DAbCdEfGhIj/");
+        // An encoded slash is a slash once decoded (as android.net.Uri reports the path), so
+        // this is the reel "DAb". Whatever comes out is built from a checked shortcode alone.
+        assertEquals("https://www.instagram.com/p/DAb/",
+                PostboxLinks.reelAsPostLink("https://www.instagram.com/reel/DAb%2FCdE/x"));
+    }
+
+    /**
+     * What a rewrite produces opens (it is a post link) and is not a reel link, so it is never
+     * rewritten a second time, whatever it started as.
+     */
+    @Test
+    public void aRewrittenLinkIsAllowedAndIsNeverRewrittenAgain() {
+        for (String link : new String[] {
+                "https://www.instagram.com/reel/DAbCdEfGhIj/",
+                "https://www.instagram.com/reels/DAbCdEfGhIj/?igsh=x",
+                "https://instagr.am/some.user_1/reel/DAbCdEfGhIj",
+                // shortcodes that look like route names
+                "https://www.instagram.com/reel/reel/",
+                "https://www.instagram.com/reel/reels/",
+                "https://www.instagram.com/reel/p/",
+        }) {
+            String post = PostboxLinks.reelAsPostLink(link);
+            assertEquals("for " + link, true, post != null && post.startsWith("https://www.instagram.com/p/"));
+            assertEquals("for " + post, Verdict.ALLOW, PostboxLinks.classify(post));
+            assertNull("for " + post, PostboxLinks.reelAsPostLink(post));
+        }
     }
 
     // ---- web: single items ------------------------------------------------------------------

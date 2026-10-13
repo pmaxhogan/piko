@@ -19,7 +19,8 @@ import org.junit.Test;
 public class PostboxBuildTest {
     /** One per Postbox patch (plus the trace option); the patches look these up by name. */
     private static final Set<String> EXPECTED = new TreeSet<>(
-            Arrays.asList("shortcutLock", "linkRouter", "networkBlock", "profileGrid", "traceNetwork"));
+            Arrays.asList("shortcutLock", "linkRouter", "networkBlock", "profileGrid", "surfaceLock",
+                    "traceNetwork"));
 
     @Test
     public void everySwitchIsOffByDefault() throws Exception {
@@ -43,6 +44,7 @@ public class PostboxBuildTest {
         assertFalse(PostboxBuild.linkRouter());
         assertFalse(PostboxBuild.networkBlock());
         assertFalse(PostboxBuild.profileGrid());
+        assertFalse(PostboxBuild.surfaceLock());
         assertFalse(PostboxBuild.traceNetwork());
     }
 }

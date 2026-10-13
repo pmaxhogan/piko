@@ -22,20 +22,49 @@ Only in two fork-owned directories, plus tests and one build block:
 - Patches: `patches/src/main/kotlin/app/crimera/patches/instagram/postbox/*.kt`
   (`PostboxCorePatch.kt` shared helpers + the internal init patch, and one file per
   patch: `PostboxSettingsLockPatch.kt`, `PostboxShortcutLockPatch.kt`,
-  `PostboxLinkRouterPatch.kt`, `PostboxNetworkBlockPatch.kt`, `PostboxProfileGridPatch.kt`).
+  `PostboxLinkRouterPatch.kt`, `PostboxNetworkBlockPatch.kt`, `PostboxProfileGridPatch.kt`,
+  `PostboxSurfaceLockPatch.kt`).
 - Runtime: `extensions/instagram/src/main/java/app/morphe/extension/instagram/patches/postbox/*.java`
   (`Postbox` lifecycle hub, `PostboxBuild` switches, `PostboxNav`, `PostboxSettings`,
   `PostboxShortcuts`, `PostboxLinks` + `PostboxLinkRouter`, `PostboxNet`,
-  `PostboxProfile` + `PostboxProfileNet`).
+  `PostboxProfile` + `PostboxProfileNet`, `PostboxSurface`).
 - Tests: `extensions/instagram/src/test/java/app/morphe/extension/instagram/patches/postbox/`.
 - `extensions/instagram/build.gradle.kts` carries a fork-only block adding
   `testImplementation("junit:junit:4.13.2")` (the Instagram extension had no tests
   upstream). Keep it a separate block at the end so upstream edits above do not collide.
 
-The five patches are `Postbox settings lock`, `Postbox shortcut lock`,
-`Postbox link router`, `Postbox network block` and `Postbox profile grid`, all `default = false`, so a plain
-piko user never gets them. Their header comments explain each one; read those before
-editing.
+The six patches are `Postbox settings lock`, `Postbox shortcut lock`,
+`Postbox link router`, `Postbox network block`, `Postbox profile grid` and
+`Postbox surface lock`, all `default = false`, so a plain piko user never gets them. Their
+header comments explain each one; read those before editing.
+
+What each layer does, for the surfaces that have more than one:
+
+- Launcher shortcuts (`Postbox shortcut lock`): static ones are stripped from the manifest.
+  Dynamic ones are (1) never published: every call in Instagram's code to
+  `ShortcutManager.setDynamicShortcuts` / `addDynamicShortcuts` / `pushDynamicShortcut` is
+  redirected to `PostboxShortcuts`, which goes by `PostboxShortcuts.keeps` (returns false:
+  nothing is kept, the conversation targets included); (2) cleared when the UI goes to the
+  background (last activity stopped, or `TRIM_MEMORY_UI_HIDDEN`), at once and after about
+  1 s, 5 s and 15 s; (3) cleared at process start and from `onActivityResumed`, at most once
+  a minute. Instagram publishes on backgrounding, which is why (3) alone was not enough.
+- Forbidden pages (search results, audio, hashtag, place): `Postbox link router` bounces a
+  LINK to one that comes from outside; `Postbox surface lock` bounces the page itself when a
+  tap inside the app opens it (found by a view id that only that page has); `Postbox network
+  block` leaves it empty if both were missed.
+- Home: `Postbox network block` empties the feed; `Postbox surface lock` takes the click off
+  the title (the Following / Favorites menu) and hides the endless loading placeholder.
+- A link to a single reel (`Postbox link router`): Instagram routes `/reel/<code>` to
+  `ClipsUrlHandlerActivity`, whose viewer loads even its first item through
+  `clips/discover/stream/`, which the network block fails ("something went wrong"). That
+  endpoint stays blocked. Instead `PostboxLinks.reelAsPostLink` turns `/reel/<code>`,
+  `/reels/<code>` and `/<user>/reel/<code>` into `https://www.instagram.com/p/<code>/`
+  (shortcode only, no query), which `MediaExternalUrlHandlerActivity` plays as a single post.
+  `PostboxLinkRouter.openAsPost` swaps the link in place when the activity is exported (the
+  entry point `UrlHandlerLauncherActivity`, before it picks a handler), and otherwise, for a
+  VIEW intent only, sends the post link to the app again and finishes the handler. Not
+  rewritten, for want of a shortcode: `/share/reel/<id>` and `instagram://reel` /
+  `instagram://reels_share`. A reel opened from a chat carries no link and is untouched.
 
 ## The no-fingerprint technique
 
@@ -64,9 +93,22 @@ register piko uses).
   must sit OUTSIDE piko's try block: that block catches `Exception` and would swallow
   the block. `hookInterceptUri` checks this and fails the build otherwise.
 
+One exception to "only piko's own classes are edited": `Postbox shortcut lock` rewrites
+Instagram methods, the ones that publish dynamic shortcuts. It still has no fingerprint. The
+calls name a framework class (`Landroid/content/pm/ShortcutManager;`), which is never
+obfuscated, so `classDefForEach` finds them in whatever class they live in (five calls in
+four methods of `LX/0Mp;` and `LX/6eN;` on 447.0.0.55.81). Each `invoke-virtual` becomes an
+`invoke-static` to the `PostboxShortcuts` method of the same name on the same registers (one
+instruction for one, nothing moves). The extension package is skipped in the walk, because
+`PostboxShortcuts` makes those calls itself. Zero calls found fails the build, and so does a
+`PostboxShortcuts` that is not `public` (Instagram's classes call it). The patcher log line
+`Postbox shortcut lock: redirected N shortcut publish call(s) in M method(s): ...` names
+every site. morphe-cli only prints loggers named `app.morphe.*`; a patch logs through
+`Logger.getLogger(this::class.java.name)` inside `execute`, any other name is dropped.
+
 ### `PostboxBuild`: the constant getters
 
-`PostboxBuild.shortcutLock() / linkRouter() / networkBlock() / profileGrid() / traceNetwork()` are the
+`PostboxBuild.shortcutLock() / linkRouter() / networkBlock() / profileGrid() / surfaceLock() / traceNetwork()` are the
 build switches. In source each is a bare `return false;`, which compiles to exactly
 `const/4 vX, 0x0; return vX`. A patch turns its feature on by rewriting that constant
 to `0x1` in the dex (`enableBuildFlag`). Rules:
@@ -110,13 +152,26 @@ parser before a Postbox build ships. Do not "fix" it by loosening the reflection
 re-point it and re-read what the method now does. The same goes for `PostboxNavTest`,
 which references `NavigationBarPatch.Tab`.
 
-## Adding to the network block or the link router
+## Adding to the network block, the link router or the surface lock
 
 - Network block: add the path substring to `BLOCKED_PATHS` in `PostboxNet.java` (a
   trailing slash is deliberate where a longer sibling must stay reachable; the stories
-  tray is `/feed/reels_tray/` and must never match), or a parser key to
-  `DROPPED_PARSER_KEYS`, and add a row to `PostboxNetTest`, including a near-miss that
-  must NOT be blocked.
+  tray is `/feed/reels_tray/` and must never match), a `{first part, later part}` row to
+  `BLOCKED_PAIRS` when an id sits in the middle of the path (`/media/<id>/chaining`,
+  `/locations/<id>/sections/`), or a parser key to `DROPPED_PARSER_KEYS`, and add a row to
+  `PostboxNetTest`, including a near-miss that must NOT be blocked. Typeahead
+  (`fbsearch/ig_typeahead/`, `keyword_typeahead/`, `typeahead_stream/`, `places/`,
+  `tags/search/`, `location_search/`) and single reels (`clips/item/`, `clips/items/`,
+  `clips/direct_thread_clips/`, `clips/user/`) must stay reachable; the test pins them.
+- Surface lock: a forbidden page is a row in `PostboxSurface.FORBIDDEN_VIEWS`, the name of
+  a view that ONLY that page has plus a label for logcat. Take the name from a
+  `uiautomator dump` of the page and check it is absent from dumps of the allowed screens
+  (inbox search, a single reel, a single post, profiles, the friend map); add it to
+  `PostboxSurfaceTest`. A match only counts while the view is really on screen, like a
+  dump. The first pass logs `surface: watching, ids[...]` once (tag `Postbox`); an
+  `UNRESOLVED` there is a name this build does not have. Views are looked at after layout,
+  at most once per 150 ms per activity window; dialogs and popups are separate windows and
+  are not looked at.
 - Link router: edit the tables in `PostboxLinks.java` (it is pure Java, no Android
   types) and add a row to `PostboxLinksTest`. Unknown `instagram://` hosts and unknown
   instagram.com paths bounce by design; a wrongly bounced one logs a `bounce` line in
@@ -180,9 +235,18 @@ the built extension, outside the patcher. Designed but unobserved:
 the fixed bar and startup guard, shortcut removal (what `dumpsys shortcut` shows), the
 link bounce for each deep-link form, whether the blocked endpoints really empty the feed
 and the post-chaining surfaces on 447.0.0.55.81, and whether piko's settings page is
-still reachable and pruned. `Postbox profile grid` is the least certain of the five: its view id names
+still reachable and pruned. `Postbox profile grid` is the least certain of the six: its view id names
 (`PostboxProfile.java`, the arrays marked UNCONFIRMED) and request paths
 (`PostboxProfileNet.java`) come from public UI dumps and the long-standing private API,
 not from the APK. Its first run logs which names resolved (`adb logcat -s Postbox`, lines
-starting `profile grid:`); fix the arrays from that. One item of the original design has
-no code in the fork yet: hiding the feed-switcher dropdown on Home. Do not describe any of this as tested.
+starting `profile grid:`); fix the arrays from that. Do not describe any of this as tested.
+
+Added 2026-10-12 after a first look at vantage.2 on a phone, and NOT yet run on one:
+the shortcut publish redirect and the background clearing passes, the extra network paths
+(search results, audio, hashtag, place), the reel-link rewrite of the link router, and all
+of `Postbox surface lock`. The patcher
+applies all sixteen patches of the Postbox set to 447.0.0.55.81 and rewrites the five
+publish calls, and the view id names of the surface lock come from uiautomator dumps of
+the running app, but whether the bounce, the title lock and the placeholder hide behave
+is unobserved. The placeholder is a row of the Home list made `INVISIBLE`; if Instagram
+shows it again without a layout pass it stays visible until the next one.

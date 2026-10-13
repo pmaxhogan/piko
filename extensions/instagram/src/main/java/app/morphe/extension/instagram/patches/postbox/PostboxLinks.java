@@ -19,7 +19,8 @@ import java.util.Set;
  *
  * Postbox opens single items (a post, a reel, a story, a profile, a DM thread) and the account
  * pages, and nothing that is a feed: Home, Explore, the Reels tab, hashtag, location, search
- * and audio pages are bounced to the inbox.
+ * and audio pages are bounced to the inbox. A link to a single reel is opened through its
+ * single-post form ({@link #reelAsPostLink}), because the Reels viewer cannot load in Postbox.
  *
  * Defaults for what is not listed, per kind of link:
  *
@@ -149,6 +150,12 @@ public final class PostboxLinks {
     /** "emaillogin", "smslogin", "web_emaillogin": the one-tap login links sent by email and SMS. */
     private static final String APP_ALLOWED_SUFFIX = "login";
 
+    /**
+     * What a link to a single reel is rewritten to: the same shortcode in the single-post
+     * viewer. See {@link #reelAsPostLink}.
+     */
+    private static final String POST_LINK_PREFIX = "https://www.instagram.com/p/";
+
     private static final int MAX_USERNAME = 30;
     private static final int MAX_CODE = 128;
     private static final int MAX_DESCRIPTION = 160;
@@ -189,6 +196,73 @@ public final class PostboxLinks {
 
     public static Verdict classify(URI link) {
         return link == null ? Verdict.ALLOW : classify(link.toString());
+    }
+
+    /**
+     * The single-post form of a link to a single reel, or null for every other link (which is
+     * then classified as usual).
+     *
+     * L2 says a reel link opens as a single item. Instagram's reel link handler does not do
+     * that in Postbox: it opens the Reels viewer, which fetches even its first item through the
+     * Reels feed endpoint, and that endpoint is blocked (and must stay blocked), so the viewer
+     * shows an error. The single-post viewer plays the very same shortcode with nothing below
+     * it (seen on 447.0.0.55.81). So {@code /reel/<code>}, {@code /reels/<code>} and
+     * {@code /<user>/reel/<code>} on the app-link hosts become
+     * {@code https://www.instagram.com/p/<code>/}.
+     *
+     * Only the shortcode is carried over: no query (share tokens), nothing after the code.
+     * Deliberately NOT rewritten, because there is no shortcode in them to carry over:
+     * {@code /share/reel/<id>} (a share id) and {@code instagram://reel?...} /
+     * {@code instagram://reels_share?...} (media ids, in parameters this code does not know).
+     *
+     * No loop: the result starts with /p/, which is never a reel link (PostboxLinksTest).
+     */
+    public static String reelAsPostLink(String scheme, String host, String path) {
+        try {
+            String s = normalize(scheme);
+            if (!s.equals("http") && !s.equals("https")) return null;
+            String h = normalize(host);
+            while (h.endsWith(".")) h = h.substring(0, h.length() - 1);
+            if (!APP_LINK_HOSTS.contains(h)) return null;
+            List<String> segments = segments(path);
+            if (segments == null) return null;
+            String code = reelCode(segments);
+            return code == null ? null : POST_LINK_PREFIX + code + "/";
+        } catch (Throwable t) {
+            // Not rewritten is always safe: the link is still classified.
+            return null;
+        }
+    }
+
+    /** {@link #reelAsPostLink(String, String, String)} for a link given as text. */
+    public static String reelAsPostLink(String link) {
+        if (link == null) return null;
+        try {
+            String[] parts = split(link);
+            return reelAsPostLink(parts[0], parts[1], parts[2]);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The shortcode of a path that names one reel, in the three forms the table lets open. */
+    private static String reelCode(List<String> segments) {
+        int count = segments.size();
+        if (count < 2) return null;
+        // Whatever is rewritten must be a link that was allowed to open in the first place.
+        if (classifyWebPath(segments, null) != Verdict.ALLOW) return null;
+        String root = lower(segments.get(0));
+        if (root.equals("reel")) return segments.get(1);
+        if (root.equals("reels")) return segments.get(1);
+        // /<user>/reel/<code>. The roots with a meaning of their own come first: /p/reel/<code>
+        // is the post "reel", and /share/reel/<id> carries a share id, not a shortcode.
+        if (root.equals("p") || root.equals("tv") || root.equals("share") || root.equals("s")
+                || root.equals("stories") || root.equals("direct") || root.equals("accounts")
+                || root.equals("_u") || root.equals("_n")
+                || ACCOUNT_ROOTS.contains(root) || INFO_ROOTS.contains(root)) {
+            return null;
+        }
+        return count >= 3 && lower(segments.get(1)).equals("reel") ? segments.get(2) : null;
     }
 
     /** What a bounce logs: scheme, host and path. Never the query, which can carry tokens. */

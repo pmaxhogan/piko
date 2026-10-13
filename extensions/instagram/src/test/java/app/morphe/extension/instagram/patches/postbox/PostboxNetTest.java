@@ -12,7 +12,7 @@ import org.junit.Test;
 
 import app.morphe.extension.instagram.constants.Constants;
 
-/** The network block list (D4, D7) and the parser-level drop, as pure functions. */
+/** The network block list (D4, D7, L2) and the parser-level drop, as pure functions. */
 public class PostboxNetTest {
     /** Paths as Tigon requests carry them; each must be blocked. */
     private static final String[] BLOCKED = {
@@ -25,11 +25,23 @@ public class PostboxNetTest {
             "/api/v1/fbsearch/recent_searches/",
             "/api/v1/fbsearch/top_serp/",
             "/api/v1/fbsearch/nullstate_dynamic_sections/",
+            // the search results page (a hashtag tapped in a caption lands on it)
+            "/api/v1/fbsearch/top_serp_stream/",
+            "/api/v1/fbsearch/account_serp/",
+            "/api/v1/fbsearch/non_profiled_serp/",
             // Reels tab
             "/api/v1/clips/home/",
             "/api/v1/clips/discover/",
             "/api/v1/clips/discover/stream/",
             "/api/v1/clips/get_blend_medias/",
+            // the reels grids of an audio, a place, a hashtag and a keyword
+            "/api/v1/clips/music/",
+            "/api/v1/clips/audio_page_chain_clips/",
+            "/api/v1/clips/locations/213385402/",
+            "/api/v1/clips/tags/sunset/",
+            "/api/v1/clips/keyword/",
+            // the Top and Recent grids of a place page
+            "/api/v1/locations/213385402/sections/",
             // chaining below a post or reel (D7)
             "/api/v1/discover/chaining/",
             "/api/v1/discover/chaining",
@@ -64,8 +76,18 @@ public class PostboxNetTest {
             "/api/v1/direct_v2/threads/broadcast/text/",
             // recipient and people search used by DMs and story tagging
             "/api/v1/users/search/",
-            "/api/v1/fbsearch/account_serp/",
             "/api/v1/fbsearch/topsearch_flat/",
+            "/api/v1/fbsearch/ig_typeahead/",
+            "/api/v1/fbsearch/keyword_typeahead/",
+            "/api/v1/fbsearch/typeahead_stream/",
+            "/api/v1/fbsearch/places/",
+            "/api/v1/tags/search/",
+            "/api/v1/location_search/",
+            // a place's name and address, and its own story: only its post grids are blocked
+            "/api/v1/locations/213385402/info/",
+            "/api/v1/locations/213385402/location_info/",
+            "/api/v1/locations/213385402/story/",
+            "/api/v1/locations/sections/",
             // a single post or reel, and its comments
             "/api/v1/media/3141592653589793238/info/",
             "/api/v1/media/3141592653589793238_25025320/info/",
@@ -74,6 +96,9 @@ public class PostboxNetTest {
             "/api/v1/media/3141592653589793238/likers/",
             "/api/v1/media/3141592653589793238/like/",
             "/api/v1/clips/item/",
+            "/api/v1/clips/items/",
+            "/api/v1/clips/direct_thread_clips/",
+            "/api/v1/clips/user/",
             "/api/v1/media/configure_to_story/",
             "/api/v1/media/configure/",
             "/api/v1/media/upload_finish/",
@@ -146,6 +171,50 @@ public class PostboxNetTest {
         assertFalse(PostboxNet.isBlockedPath(tray.getPath()));
         URI chaining = new URI("https://i.instagram.com/api/v1/media/42/info/?from=chaining");
         assertFalse(PostboxNet.isBlockedPath(chaining.getPath()));
+    }
+
+    /**
+     * L2 at the network: what fills the search results, audio, hashtag and place pages is
+     * blocked; what people search, typeahead and a single reel need is not.
+     */
+    @Test
+    public void taggedSurfacesAreBlockedButTypeaheadAndSingleReelsAreNot() {
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/fbsearch/top_serp/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/fbsearch/top_serp_stream/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/fbsearch/account_serp/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/fbsearch/non_profiled_serp/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/clips/music/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/clips/audio_page_chain_clips/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/clips/locations/42/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/clips/tags/tag/"));
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/clips/keyword/"));
+
+        for (String path : new String[] {
+                "/api/v1/fbsearch/ig_typeahead/",
+                "/api/v1/fbsearch/keyword_typeahead/",
+                "/api/v1/fbsearch/typeahead_stream/",
+                "/api/v1/fbsearch/places/",
+                "/api/v1/tags/search/",
+                "/api/v1/location_search/",
+                "/api/v1/clips/item/",
+                "/api/v1/clips/items/",
+                "/api/v1/clips/direct_thread_clips/",
+                "/api/v1/clips/user/",
+        }) {
+            assertFalse("must not block " + path, PostboxNet.isBlockedPath(path));
+        }
+    }
+
+    @Test
+    public void locationSectionsNeedBothParts() {
+        assertTrue(PostboxNet.isBlockedPath("/api/v1/locations/42/sections/"));
+        // The place's own details, and place search while tagging a story, stay reachable.
+        assertFalse(PostboxNet.isBlockedPath("/api/v1/locations/42/info/"));
+        assertFalse(PostboxNet.isBlockedPath("/api/v1/locations/42/story/"));
+        assertFalse(PostboxNet.isBlockedPath("/api/v1/location_search/"));
+        // "/sections/" before "/locations/", or with nothing in between, is some other endpoint.
+        assertFalse(PostboxNet.isBlockedPath("/api/v1/sections/locations/42/"));
+        assertFalse(PostboxNet.isBlockedPath("/api/v1/locations/sections/"));
     }
 
     @Test

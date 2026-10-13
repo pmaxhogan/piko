@@ -47,7 +47,7 @@ permissions:
 
 env:
   # Vantage build revision. See the VERSIONING note above.
-  VANTAGE_REV: "2"
+  VANTAGE_REV: "3"
 
 jobs:
   build:

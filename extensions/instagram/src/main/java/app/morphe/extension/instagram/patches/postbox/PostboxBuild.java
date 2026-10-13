@@ -18,7 +18,7 @@ public final class PostboxBuild {
     private PostboxBuild() {
     }
 
-    /** "Postbox shortcut lock": clear dynamic shortcuts and disable pinned ones. */
+    /** "Postbox shortcut lock": publish no dynamic shortcuts, clear them, disable pinned ones. */
     public static boolean shortcutLock() {
         return false;
     }
@@ -28,7 +28,7 @@ public final class PostboxBuild {
         return false;
     }
 
-    /** "Postbox network block": block the feed, Explore, Reels-tab and chaining endpoints. */
+    /** "Postbox network block": block the feed, Explore, Reels-tab, search and chaining endpoints. */
     public static boolean networkBlock() {
         return false;
     }
@@ -38,6 +38,14 @@ public final class PostboxBuild {
      * the requests that fill it.
      */
     public static boolean profileGrid() {
+        return false;
+    }
+
+    /**
+     * "Postbox surface lock": no feed switcher and no loading placeholder on Home, and a bounce
+     * to the inbox from the search results, audio and place pages.
+     */
+    public static boolean surfaceLock() {
         return false;
     }
 

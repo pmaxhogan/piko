@@ -106,7 +106,7 @@ public final class PostboxProfile {
      * a tab's screens are swapped in), so searching from one of them could reach the user's own
      * profile. UNCONFIRMED names, but a wrong one here only means the walk stops a level later.
      */
-    private static final String[] CEILING_VIEWS = {
+    static final String[] CEILING_VIEWS = {
             "layout_container_swipeable",
             "swipeable_nav_view_pager_inner_recycler_view",
             "swipeable_tab_view_pager",
@@ -305,18 +305,7 @@ public final class PostboxProfile {
         if (cached != null) return cached;
 
         Resources resources = view.getResources();
-        // The package the ids are filed under is the one in the resource table. In a clone
-        // that may or may not be the renamed application id, so it is read off a view that
-        // really has an id from that table instead of being assumed (and never hardcoded).
-        Set<String> packages = new LinkedHashSet<>();
-        View cursor = view;
-        for (int level = 0; cursor != null && level < MAX_ANCESTORS; level++) {
-            String owner = resourcePackageOf(resources, cursor.getId());
-            if (owner != null) packages.add(owner);
-            ViewParent parent = cursor.getParent();
-            cursor = parent instanceof View ? (View) parent : null;
-        }
-        packages.add(view.getContext().getPackageName());
+        Set<String> packages = resourcePackagesOf(view);
 
         StringBuilder summary = new StringBuilder("ids[");
         int[] grid = resolveAll(resources, packages, GRID_VIEW_CANDIDATES, summary);
@@ -333,7 +322,28 @@ public final class PostboxProfile {
         return result;
     }
 
-    private static int[] resolveAll(Resources resources, Set<String> packages, String[] idNames, StringBuilder summary) {
+    /**
+     * The packages an id name is looked up in. The package the ids are filed under is the one
+     * in the resource table. In a clone that may or may not be the renamed application id, so
+     * it is read off a view that really has an id from that table (this one or an ancestor)
+     * instead of being assumed (and never hardcoded). "Postbox surface lock" resolves its names
+     * the same way.
+     */
+    static Set<String> resourcePackagesOf(View view) {
+        Resources resources = view.getResources();
+        Set<String> packages = new LinkedHashSet<>();
+        View cursor = view;
+        for (int level = 0; cursor != null && level < MAX_ANCESTORS; level++) {
+            String owner = resourcePackageOf(resources, cursor.getId());
+            if (owner != null) packages.add(owner);
+            ViewParent parent = cursor.getParent();
+            cursor = parent instanceof View ? (View) parent : null;
+        }
+        packages.add(view.getContext().getPackageName());
+        return packages;
+    }
+
+    static int[] resolveAll(Resources resources, Set<String> packages, String[] idNames, StringBuilder summary) {
         int[] ids = new int[idNames.length];
         for (int index = 0; index < idNames.length; index++) {
             for (String owner : packages) {
@@ -356,7 +366,7 @@ public final class PostboxProfile {
     }
 
     /** The resource-table package of an app-defined id, or null. */
-    private static String resourcePackageOf(Resources resources, int id) {
+    static String resourcePackageOf(Resources resources, int id) {
         // 0x01 is the framework's own table; View.NO_ID is -1.
         if (id == View.NO_ID || id == 0 || (id >>> 24) <= 0x01) return null;
         try {
@@ -366,7 +376,7 @@ public final class PostboxProfile {
         }
     }
 
-    private static int indexOf(int[] ids, int id) {
+    static int indexOf(int[] ids, int id) {
         if (id == View.NO_ID || id == 0) return -1;
         for (int index = 0; index < ids.length; index++) {
             if (ids[index] == id) return index;
@@ -374,7 +384,7 @@ public final class PostboxProfile {
         return -1;
     }
 
-    private static String describe(View view) {
+    static String describe(View view) {
         String name;
         int id = view.getId();
         if (id == View.NO_ID) {

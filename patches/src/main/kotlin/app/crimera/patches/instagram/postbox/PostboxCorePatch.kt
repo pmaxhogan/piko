@@ -50,6 +50,7 @@ internal const val FLAG_SHORTCUT_LOCK = "shortcutLock"
 internal const val FLAG_LINK_ROUTER = "linkRouter"
 internal const val FLAG_NETWORK_BLOCK = "networkBlock"
 internal const val FLAG_PROFILE_GRID = "profileGrid"
+internal const val FLAG_SURFACE_LOCK = "surfaceLock"
 internal const val FLAG_TRACE_NETWORK = "traceNetwork"
 
 internal fun Method.postboxParameterTypes() = parameterTypes.map(CharSequence::toString)

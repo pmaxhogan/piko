@@ -2,6 +2,7 @@ package app.morphe.extension.instagram.patches.postbox;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -43,6 +44,28 @@ public class PostboxLinkRouterTest {
     public void theResultOfABounceIsNeverBounced() {
         assertEquals(Verdict.ALLOW, PostboxLinks.classify(null, null, null, null));
         assertEquals(PostboxNav.INBOX_TAB, PostboxNav.sanitizeStartupTab(PostboxNav.INBOX_TAB));
+    }
+
+    /**
+     * A reel link is handed on as a post link (in place, or sent to the app again). What is
+     * handed on must pass straight through the router: allowed, and not a reel link, or the
+     * router would send it round forever.
+     */
+    @Test
+    public void theResultOfAReelRewritePassesStraightThrough() {
+        String post = PostboxLinks.reelAsPostLink("https://www.instagram.com/reel/DAbCdEfGhIj/?igsh=x");
+        assertEquals("https://www.instagram.com/p/DAbCdEfGhIj/", post);
+        assertEquals(Verdict.ALLOW, PostboxLinks.classify(post));
+        assertNull(PostboxLinks.reelAsPostLink(post));
+        // The activity the link is taken away from keeps no link at all, which is allowed too.
+        assertNull(PostboxLinks.reelAsPostLink(null, null, null));
+    }
+
+    /** The Reels tab itself is still a bounce, not a rewrite. */
+    @Test
+    public void bareReelsIsStillBounced() {
+        assertNull(PostboxLinks.reelAsPostLink("https://www.instagram.com/reels/"));
+        assertEquals(Verdict.BOUNCE, PostboxLinks.classify("https://www.instagram.com/reels/"));
     }
 
     /** The inbox as a link is allowed too, in every form Instagram has for it. */

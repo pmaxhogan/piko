@@ -23,11 +23,12 @@ import com.android.tools.smali.dexlib2.iface.value.ArrayEncodedValue
 import com.android.tools.smali.dexlib2.iface.value.TypeEncodedValue
 
 /*
- * Postbox (Vantage fork only, not upstream piko): the network layer of the lock-down (D4, D7).
+ * Postbox (Vantage fork only, not upstream piko): the network layer of the lock-down (D4, D7, L2).
  *
- * The other Postbox patches close the ways INTO the feed, Explore and the Reels tab. This one
- * makes those surfaces empty if a way in was missed, and it is the whole implementation of
- * "Home is the stories tray over an empty feed" and "nothing pages in below an opened post".
+ * The other Postbox patches close the ways INTO the feed, Explore, the Reels tab and the search
+ * results, audio, hashtag and place pages. This one makes those surfaces empty if a way in was
+ * missed, and it is the whole implementation of "Home is the stories tray over an empty feed"
+ * and "nothing pages in below an opened post".
  *
  * Both hooks are prepended to piko's own extension methods, found by class and method name:
  *
@@ -134,9 +135,9 @@ val postboxNetworkBlockPatch =
     bytecodePatch(
         name = "Postbox network block",
         description = "Postbox builds only. Blocks the requests behind the home feed, Explore, the Reels " +
-            "tab and the posts and reels suggested after the one you opened, so those surfaces stay " +
-            "empty however they are reached. The stories tray, messages, profiles and single posts are " +
-            "not affected.",
+            "tab, the search results, audio, hashtag and place pages, and the posts and reels suggested " +
+            "after the one you opened, so those surfaces stay empty however they are reached. The " +
+            "stories tray, messages, profiles and single posts are not affected.",
         default = false,
     ) {
         val traceNetwork by booleanOption(

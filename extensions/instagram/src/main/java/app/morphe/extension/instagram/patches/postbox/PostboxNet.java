@@ -19,8 +19,9 @@ import app.morphe.extension.instagram.constants.Constants;
  * - {@link #interceptUri(URI)} runs first thing in {@code Links.interceptUri(URI)}, which piko
  *   calls for every Tigon request. Throwing IOException there fails that one request the way a
  *   dropped connection would, so the surface behind it renders empty: the home feed (D4), the
- *   Explore grid, the Reels tab and everything that would page in below an opened post or reel
- *   (D7). This is the layer that still holds when a route into one of those surfaces was missed.
+ *   Explore grid, the Reels tab, the search results, audio, hashtag and place pages (L2), and
+ *   everything that would page in below an opened post or reel (D7). This is the layer that
+ *   still holds when a route into one of those surfaces was missed.
  * - {@link #replaceJsonParserKey(String)} runs first thing in {@code Block.replaceJsonParserKey},
  *   piko's hook on the feed-item parser, and gives two more unit types an unknown name so the
  *   parser drops them.
@@ -48,12 +49,24 @@ public final class PostboxNet {
             // Explore and the Search tab's landing page.
             "/discover/topical_explore",
             "/fbsearch/recent_searches/",
-            "/fbsearch/top_serp/",
             "/fbsearch/nullstate_dynamic_sections/",
+            // The search results page, which a tap on a hashtag in a caption opens as well.
+            // No trailing slash on the first: it is /fbsearch/top_serp/ and .../top_serp_stream/.
+            // The typeahead endpoints (people search, caption and sticker typeahead) are not these.
+            "/fbsearch/top_serp",
+            "/fbsearch/account_serp/",
+            "/fbsearch/non_profiled_serp/",
             // Reels tab.
             "/clips/home/",
             "/clips/discover",
             "/clips/get_blend_medias/",
+            // The reels grids behind an audio, a place, a hashtag and a keyword. A single reel is
+            // /clips/item/ or /clips/items/, the reels of a chat /clips/direct_thread_clips/.
+            "/clips/music/",
+            "/clips/audio_page_chain_clips/",
+            "/clips/locations/",
+            "/clips/tags/",
+            "/clips/keyword/",
             // What pages in below or after a single post or reel (D7), and suggested accounts.
             // Without a trailing slash, like piko's own entries for the first two.
             "/discover/chaining",
@@ -63,9 +76,19 @@ public final class PostboxNet {
             "/feed/injected_reels_media",
     };
 
-    /** /media/<id>/chaining...: "more posts like this" for one media id. */
-    private static final String MEDIA_PREFIX = "/media/";
-    private static final String CHAINING = "chaining";
+    /**
+     * Blocked when the path contains the first part and, anywhere after it, the second: an id
+     * sits between the two.
+     *
+     * - /media/<id>/chaining...: "more posts like this" for one media id.
+     * - /locations/<id>/sections/: the Top and Recent grids of a place page. A bare "/locations/"
+     *   would also take the place's name and address and the place's own story, and
+     *   /location_search/ (tagging a place) is a different endpoint altogether.
+     */
+    private static final String[][] BLOCKED_PAIRS = {
+            {"/media/", "chaining"},
+            {"/locations/", "/sections/"},
+    };
 
     /**
      * Feed unit types dropped at the parser on top of piko's own set (exact names, no prefixes):
@@ -83,8 +106,11 @@ public final class PostboxNet {
         for (String blocked : BLOCKED_PATHS) {
             if (path.contains(blocked)) return true;
         }
-        int media = path.indexOf(MEDIA_PREFIX);
-        return media >= 0 && path.indexOf(CHAINING, media + MEDIA_PREFIX.length()) >= 0;
+        for (String[] pair : BLOCKED_PAIRS) {
+            int first = path.indexOf(pair[0]);
+            if (first >= 0 && path.indexOf(pair[1], first + pair[0].length()) >= 0) return true;
+        }
+        return false;
     }
 
     /** Pure: whether a feed unit with this type key is dropped. */
