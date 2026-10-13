@@ -251,13 +251,15 @@ reads is in the vantage README, "Checked on a device"):
   map or the inbox search; `home title locked` and `home placeholder hidden`, re-applied
   after leaving and re-entering Home;
 - piko's settings page: reachable from the own profile, the locked rows gone.
+- still working with all of it on: a story from the tray (opens, advances, returns),
+  and the people search of New Message and of the inbox (`account_serp` is blocked,
+  the typeahead endpoints are not).
 
 NOT observed, do not describe as tested:
 
 - push notifications on the renamed package (permission was not granted, no message was
   sent to the phone);
-- posting a story, sending a message, logout and login with 2FA; stories on vantage.3
-  (they played on vantage.2);
+- posting a story, sending a message, logout and login with 2FA;
 - the background clearing passes of the shortcut lock ever being needed (the redirect
   dropped every publish, so `shortcuts: removed N dynamic` never appeared after the
   first launch);
